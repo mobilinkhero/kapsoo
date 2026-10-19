@@ -113,6 +113,8 @@ class ChatTestController extends Controller
         }
         Contact::where('phone', '923001234567')->each(function ($c) {
             Conversation::where('contact_id', $c->id)->delete();
+            $c->metadata = null;
+            $c->save();
         });
         Session::forget('chat_test_conversation_id');
 

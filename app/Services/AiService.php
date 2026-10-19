@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Setting;
@@ -27,14 +28,15 @@ class AiService
             return;
         }
         if ($conversation->ai_mode === 'off' || $conversation->ai_handoff) {
-            // Still classify tags even when off? Classify tags only if enabled mode
             if ($conversation->ai_mode === 'off') {
                 return;
             }
         }
 
+        $contact = $conversation->contact;
+
         try {
-            $result = $this->analyze($conversation, $message);
+            $result = $this->analyze($conversation, $message, $contact);
         } catch (\Throwable $e) {
             Log::error('AI analyze failed', ['error' => $e->getMessage()]);
 
@@ -84,9 +86,9 @@ class AiService
                 'handoff_reason' => $reason,
                 'ai_mode' => 'off',
             ]);
-            // In auto mode we still might have sent? We'll not auto-send if handoff
-            // Notify by logging; UI shows handoff state
             Log::info('AI handoff triggered', ['conversation' => $conversation->id, 'reason' => $reason]);
+
+            $this->updateContactMemory($contact, $conversation, $message, $result);
 
             return;
         }
@@ -100,6 +102,8 @@ class AiService
                 'handoff_reason' => 'Low AI confidence ('.round($confidence, 2).')',
                 'ai_mode' => 'off',
             ]);
+
+            $this->updateContactMemory($contact, $conversation, $message, $result);
 
             return;
         }
@@ -131,9 +135,11 @@ class AiService
             }
             $conversation->update(['last_message_at' => now()]);
         }
+
+        $this->updateContactMemory($contact, $conversation, $message, $result);
     }
 
-    protected function analyze(Conversation $conversation, Message $message): array
+    protected function analyze(Conversation $conversation, Message $message, ?Contact $contact = null): array
     {
         $systemPrompt = $this->setting('ai_system_prompt', $this->defaultSystemPrompt());
 
@@ -142,25 +148,55 @@ class AiService
         $ragChunks = $ragResult['chunks'] ?? [];
         $ragContext = empty($ragChunks) ? '' : "Relevant knowledge base:\n- ".implode("\n- ", $ragChunks);
 
-        // Recent history (last 12 messages)
-        $history = $conversation->messages()->orderByDesc('id')->limit(12)->get()->reverse();
+        // Recent history (last 20 messages of this conversation)
+        $history = $conversation->messages()->orderByDesc('id')->limit(20)->get()->reverse();
         $chatHistory = [];
-        foreach ($history as $m) {
+        $historyArr = $history->values();
+        foreach ($historyArr as $idx => $m) {
             if ($m->id === $message->id) {
                 continue;
             }
-            $role = $m->direction === 'inbound' ? 'user' : 'assistant';
             if ($m->body) {
-                $chatHistory[] = ['role' => $role, 'content' => $m->body];
+                $chatHistory[] = ['role' => $m->direction === 'inbound' ? 'user' : 'assistant', 'content' => $m->body];
+            }
+            // In assist mode the AI suggestion is stored on the inbound message but no
+            // outbound row exists; surface it as an assistant turn so the AI remembers
+            // what it previously suggested to this customer. Skip if a following outbound
+            // message already carries the same text.
+            if ($m->direction === 'inbound' && ! empty($m->ai_suggested_reply)) {
+                $next = $historyArr->get($idx + 1);
+                $alreadyRecorded = $next && $next->direction === 'outbound' && $next->body === $m->ai_suggested_reply;
+                if (! $alreadyRecorded) {
+                    $chatHistory[] = ['role' => 'assistant', 'content' => $m->ai_suggested_reply];
+                }
             }
         }
 
         $messages = [];
         $messages[] = ['role' => 'system', 'content' => $systemPrompt];
+
+        // Customer identity + persistent memory
+        $contactName = $contact?->name ?: ($contact?->phone ?? 'Unknown');
+        $contactPhone = $contact?->phone ?? '';
+        $identityBlock = "You are speaking with customer: {$contactName} (phone: {$contactPhone}). "
+            .'Remember details about this customer from previous interactions and address them by name when natural. '
+            .'Do not confuse this customer with others.';
+        $messages[] = ['role' => 'system', 'content' => $identityBlock];
+
+        // Persistent per-customer memory (across conversations)
+        $memoryBlock = $this->buildContactMemoryBlock($contact);
+        if ($memoryBlock !== '') {
+            $messages[] = ['role' => 'system', 'content' => $memoryBlock];
+        }
+
         if ($ragContext) {
             $messages[] = ['role' => 'system', 'content' => $ragContext];
         }
-        $messages[] = ['role' => 'system', 'content' => 'Contact: '.($conversation->contact->name ?? $conversation->contact->phone).' (phone: '.$conversation->contact->phone.")\nCurrent AI tags: ".implode(', ', $conversation->ai_tags ?? [])."\nLead stage: ".($conversation->lead_stage ?? 'new')."\nAI mode: ".$conversation->ai_mode];
+        $messages[] = ['role' => 'system', 'content' => 'Conversation context: '
+            .'Current AI tags: '.implode(', ', $conversation->ai_tags ?? [])."\n"
+            .'Lead stage: '.($conversation->lead_stage ?? 'new')."\n"
+            .'Lead score: '.($conversation->lead_score ?? 0)."\n"
+            .'AI mode: '.$conversation->ai_mode];
         foreach ($chatHistory as $h) {
             $messages[] = $h;
         }
@@ -202,6 +238,83 @@ class AiService
         ];
     }
 
+    protected function buildContactMemoryBlock(?Contact $contact): string
+    {
+        if (! $contact) {
+            return '';
+        }
+        $metadata = is_array($contact->metadata) ? $contact->metadata : [];
+        $lines = [];
+
+        $name = $contact->name ?: $contact->phone;
+        $lines[] = "Customer profile: {$name} ({$contact->phone}).";
+
+        if (! empty($metadata['lead_stage'])) {
+            $lines[] = "Known lead stage: {$metadata['lead_stage']} (score: ".($metadata['lead_score'] ?? 'n/a').').';
+        }
+        if (! empty($metadata['ai_tags'])) {
+            $lines[] = 'Known tags: '.implode(', ', (array) $metadata['ai_tags']).'.';
+        }
+
+        $log = $metadata['ai_memory'] ?? [];
+        if (is_array($log) && ! empty($log)) {
+            $lines[] = 'Previous interactions with this customer (most recent last):';
+            foreach (array_slice($log, -6) as $entry) {
+                $in = trim((string) ($entry['inbound'] ?? ''));
+                $out = trim((string) ($entry['reply'] ?? ''));
+                $t = implode(', ', (array) ($entry['tags'] ?? []));
+                if ($in === '' && $out === '') {
+                    continue;
+                }
+                $lines[] = "- Customer said: \"{$in}\" | AI replied: \"{$out}\" | tags: {$t}";
+            }
+        }
+
+        if (count($lines) <= 1) {
+            return '';
+        }
+
+        return "Persistent memory for this customer (use it to stay consistent and not repeat questions):\n".implode("\n", $lines);
+    }
+
+    protected function updateContactMemory(Contact $contact, Conversation $conversation, Message $message, array $result): void
+    {
+        if (! $contact) {
+            return;
+        }
+        $metadata = is_array($contact->metadata) ? $contact->metadata : [];
+
+        $log = $metadata['ai_memory'] ?? [];
+        if (! is_array($log)) {
+            $log = [];
+        }
+        $log[] = [
+            'at' => now()->toDateTimeString(),
+            'inbound' => mb_substr((string) ($message->body ?? ''), 0, 300),
+            'reply' => mb_substr((string) ($result['reply'] ?? ''), 0, 300),
+            'tags' => array_values((array) ($result['tags'] ?? [])),
+            'lead_stage' => $result['lead_stage'] ?? $conversation->lead_stage,
+            'lead_score' => $result['lead_score'] ?? $conversation->lead_score,
+        ];
+        // Keep last 12 entries
+        $log = array_slice($log, -12);
+
+        $metadata['ai_memory'] = $log;
+        $metadata['lead_stage'] = $result['lead_stage'] ?? ($metadata['lead_stage'] ?? $conversation->lead_stage);
+        $metadata['lead_score'] = $result['lead_score'] ?? ($metadata['lead_score'] ?? $conversation->lead_score);
+        $metadata['ai_tags'] = array_values(array_unique(array_merge(
+            (array) ($metadata['ai_tags'] ?? []),
+            (array) ($result['tags'] ?? [])
+        )));
+
+        $contact->metadata = $metadata;
+        try {
+            $contact->save();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to update contact memory', ['error' => $e->getMessage()]);
+        }
+    }
+
     protected function setting(string $key, $default = null)
     {
         try {
@@ -218,6 +331,7 @@ class AiService
         return 'You are an expert sales and support assistant for a WhatsApp business. '
             .'Be friendly, concise, and goal-oriented: qualify leads, answer questions, handle objections, and move conversations toward a purchase. '
             .'Use the knowledge base when relevant. If unsure or the customer is upset or asks for a human, set handoff=true. '
-            .'Never make up facts not in the knowledge base.';
+            .'Never make up facts not in the knowledge base. '
+            .'Remember the customer across messages: keep track of their name, needs, and prior answers, and do not ask for information already provided.';
     }
 }

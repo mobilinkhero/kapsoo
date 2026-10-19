@@ -62,7 +62,7 @@ class KapsoWebhookController extends Controller
 
     protected function upsertContact(array $conversation): Contact
     {
-        $phone = $conversation['phone_number'] ?? null;
+        $phone = isset($conversation['phone_number']) ? trim((string) $conversation['phone_number']) : null;
         $name = $conversation['contact_name'] ?? null;
 
         $contact = $phone ? Contact::firstOrNew(['phone' => $phone]) : new Contact;
@@ -81,15 +81,19 @@ class KapsoWebhookController extends Controller
     protected function upsertConversation(array $data, Contact $contact): Conversation
     {
         $conv = $data['conversation'] ?? [];
-        $kapsoConvId = $conv['id'] ?? null;
 
-        $conversation = $kapsoConvId
-            ? Conversation::firstOrNew(['id' => null]) // we use auto id; store kapso id in? We'll just find by contact
-            : null;
-
-        // Simpler: find by contact_id
-        $conversation = Conversation::where('contact_id', $contact->id)->latest()->first();
+        // Reuse the most recent conversation for this contact so context/history is preserved
+        // across messages instead of fragmenting into many threads.
+        $conversation = Conversation::where('contact_id', $contact->id)
+            ->where('status', '!=', 'ended')
+            ->latest('last_message_at')
+            ->first();
         if (! $conversation) {
+            $conversation = Conversation::where('contact_id', $contact->id)
+                ->latest('last_message_at')
+                ->first();
+        }
+        if (! $conversation || $conversation->status === 'ended') {
             $conversation = new Conversation;
             $conversation->contact_id = $contact->id;
         }
@@ -145,26 +149,32 @@ class KapsoWebhookController extends Controller
             }
         }
 
-        Message::updateOrCreate(
-            ['kapso_message_id' => $msg['id'] ?? null],
-            [
-                'conversation_id' => $conversation->id,
-                'direction' => 'inbound',
-                'type' => $msg['type'] ?? 'text',
-                'body' => $body,
-                'media_url' => $mediaUrl,
-                'status' => 'received',
-                'raw_payload' => $data,
-                'sent_at' => isset($msg['timestamp']) ? Carbon::createFromTimestamp((int) $msg['timestamp']) : now(),
-            ]
-        );
+        $kapsoMessageId = $msg['id'] ?? null;
+        $messageData = [
+            'conversation_id' => $conversation->id,
+            'direction' => 'inbound',
+            'type' => $msg['type'] ?? 'text',
+            'body' => $body,
+            'media_url' => $mediaUrl,
+            'status' => 'received',
+            'raw_payload' => $data,
+            'sent_at' => isset($msg['timestamp']) ? Carbon::createFromTimestamp((int) $msg['timestamp']) : now(),
+        ];
+
+        if ($kapsoMessageId) {
+            $saved = Message::updateOrCreate(
+                ['kapso_message_id' => $kapsoMessageId],
+                $messageData
+            );
+        } else {
+            $saved = Message::create($messageData);
+        }
 
         $conversation->increment('unread_count');
         $conversation->last_message_at = now();
         $conversation->save();
 
         // Trigger AI processing for inbound messages
-        $saved = Message::where('kapso_message_id', $msg['id'] ?? null)->first();
         if ($saved) {
             ProcessAiForMessage::dispatch($saved->id);
         }
@@ -192,18 +202,21 @@ class KapsoWebhookController extends Controller
             }
         }
 
-        Message::updateOrCreate(
-            ['kapso_message_id' => $msg['id'] ?? null],
-            [
-                'conversation_id' => $conversation->id,
-                'direction' => 'outbound',
-                'type' => $type,
-                'body' => $body,
-                'status' => $kapso['status'] ?? 'sent',
-                'raw_payload' => $data,
-                'sent_at' => isset($msg['timestamp']) ? Carbon::createFromTimestamp((int) $msg['timestamp']) : now(),
-            ]
-        );
+        $sentMessageData = [
+            'conversation_id' => $conversation->id,
+            'direction' => 'outbound',
+            'type' => $type,
+            'body' => $body,
+            'status' => $kapso['status'] ?? 'sent',
+            'raw_payload' => $data,
+            'sent_at' => isset($msg['timestamp']) ? Carbon::createFromTimestamp((int) $msg['timestamp']) : now(),
+        ];
+        $sentKapsoId = $msg['id'] ?? null;
+        if ($sentKapsoId) {
+            Message::updateOrCreate(['kapso_message_id' => $sentKapsoId], $sentMessageData);
+        } else {
+            Message::create($sentMessageData);
+        }
     }
 
     protected function handleMessageStatus(array $data, string $status): void

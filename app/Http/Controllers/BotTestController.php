@@ -40,6 +40,8 @@ class BotTestController extends Controller
 
         if ($request->boolean('reset')) {
             Conversation::where('contact_id', $contact->id)->delete();
+            $contact->metadata = null;
+            $contact->save();
         }
 
         $conversation = Conversation::where('contact_id', $contact->id)->latest()->first();
