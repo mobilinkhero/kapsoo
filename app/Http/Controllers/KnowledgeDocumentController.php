@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\KnowledgeDocument;
 use App\Services\KnowledgeBaseService;
+use App\Services\OpenAIService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 class KnowledgeDocumentController extends Controller
 {
-    public function __construct(protected KnowledgeBaseService $kb) {}
+    public function __construct(protected KnowledgeBaseService $kb, protected OpenAIService $openai) {}
 
     public function index()
     {
@@ -25,6 +27,67 @@ class KnowledgeDocumentController extends Controller
     public function show(KnowledgeDocument $knowledge)
     {
         return redirect()->route('knowledge.edit', $knowledge);
+    }
+
+    public function importUrl(Request $request)
+    {
+        $data = $request->validate([
+            'url' => 'required|url',
+            'title' => 'nullable|string|max:255',
+        ]);
+
+        $response = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])->get($data['url']);
+        if ($response->failed()) {
+            return redirect()->route('knowledge.index')->with('error', 'Failed to fetch URL.');
+        }
+
+        $html = $response->body();
+        // Extract title if not provided
+        $title = $data['title'] ?? null;
+        if (! $title && preg_match('/<title[^>]*>(.*?)<\/title>/is', $html, $m)) {
+            $title = trim(html_entity_decode(strip_tags($m[1])));
+        }
+        $title = $title ?: parse_url($data['url'], PHP_URL_HOST);
+
+        // Strip scripts/styles and tags, normalize whitespace
+        $html = preg_replace('/<script\b[^>]*>.*?<\/script>/is', ' ', $html);
+        $html = preg_replace('/<style\b[^>]*>.*?<\/style>/is', ' ', $html);
+        $text = strip_tags($html);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\s+/', ' ', $text);
+        $text = trim($text);
+
+        if (strlen($text) < 50) {
+            return redirect()->route('knowledge.index')->with('error', 'Not enough text extracted from URL.');
+        }
+
+        $this->kb->addDocument($title, $text, 'web', $data['url']);
+
+        return redirect()->route('knowledge.index')->with('success', 'Imported and indexed: '.$title);
+    }
+
+    public function test(Request $request)
+    {
+        $query = $request->get('q');
+        $chunks = [];
+        $answer = null;
+        if ($query) {
+            $chunks = $this->kb->search($query, 6);
+            if ($this->openai->isConfigured()) {
+                $context = empty($chunks) ? '' : "Knowledge base context:\n- ".implode("\n- ", $chunks);
+                $messages = [
+                    ['role' => 'system', 'content' => 'You are a helpful assistant. Answer using the provided knowledge base context when relevant. Be concise.'],
+                ];
+                if ($context) {
+                    $messages[] = ['role' => 'system', 'content' => $context];
+                }
+                $messages[] = ['role' => 'user', 'content' => $query];
+                $res = $this->openai->chat($messages, ['temperature' => 0.3]);
+                $answer = $res['ok'] ? $res['content'] : ('Error: '.($res['error'] ?? 'unknown'));
+            }
+        }
+
+        return view('knowledge.test', compact('query', 'chunks', 'answer'));
     }
 
     public function store(Request $request)

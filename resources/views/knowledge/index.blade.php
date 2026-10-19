@@ -7,8 +7,18 @@
             <h2 class="text-2xl font-bold text-slate-900">Knowledge Base</h2>
             <p class="text-sm text-slate-500 mt-1">Documents used by the AI for RAG</p>
         </div>
-        <a href="{{ route('knowledge.create') }}" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">+ Add Document</a>
+        <div class="flex gap-2">
+            <a href="{{ route('knowledge.test') }}" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition">Test RAG</a>
+            <a href="{{ route('knowledge.create') }}" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">+ Add Document</a>
+        </div>
     </div>
+
+    <form method="POST" action="{{ route('knowledge.importUrl') }}" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row gap-3">
+        @csrf
+        <input name="url" type="url" required placeholder="https://example.com/article" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+        <input name="title" placeholder="Title (optional)" class="sm:w-48 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+        <button class="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition">Import URL</button>
+    </form>
 
     @if(session('success'))
         <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 text-sm">{{ session('success') }}</div>

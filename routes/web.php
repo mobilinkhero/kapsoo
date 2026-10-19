@@ -1,11 +1,11 @@
 <?php
 
+use App\Http\Controllers\AiController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\AiController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\KnowledgeDocumentController;
 use App\Http\Controllers\LogController;
@@ -42,6 +42,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/integration', [IntegrationController::class, 'index'])->name('integration.index');
 
     Route::resource('knowledge', KnowledgeDocumentController::class);
+    Route::post('knowledge/import-url', [KnowledgeDocumentController::class, 'importUrl'])->name('knowledge.importUrl');
+    Route::get('knowledge/test', [KnowledgeDocumentController::class, 'test'])->name('knowledge.test');
 
     Route::post('conversations/{conversation}/ai-mode', [AiController::class, 'setMode'])->name('conversations.aiMode');
     Route::post('conversations/{conversation}/handoff', [AiController::class, 'resumeHuman'])->name('conversations.handoff');
