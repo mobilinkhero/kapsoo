@@ -51,6 +51,7 @@ class KapsoService
     {
         return Http::withHeaders([
             'X-API-Key' => $this->apiKey,
+            'Authorization' => 'Bearer ' . $this->apiKey,
             'Content-Type' => 'application/json',
         ])->baseUrl($this->baseUrl);
     }
