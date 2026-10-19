@@ -12,21 +12,21 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1.5">Phone</label>
-                <input name="phone" value="{{ old('phone', '923001234567') }}" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                <input name="phone" value="{{ old('phone', '923001234567') }}" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1.5">Name (optional)</label>
-                <input name="name" value="{{ old('name', 'Test User') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                <input name="name" value="{{ old('name', 'Test User') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">
             </div>
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700 mb-1.5">Inbound message</label>
-            <textarea name="message" rows="3" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">{{ old('message', 'Hi, I want to know the price of your product.') }}</textarea>
+            <textarea name="message" rows="3" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">{{ old('message', 'Hi, I want to know the price of your product.') }}</textarea>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1.5">AI mode</label>
-                <select name="mode" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                <select name="mode" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">
                     <option value="assist">Assist (suggest only)</option>
                     <option value="auto">Auto (auto-reply)</option>
                     <option value="off">Off</option>
@@ -34,12 +34,12 @@
             </div>
             <div class="flex items-end">
                 <label class="flex items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" name="reset" value="1" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                    <input type="checkbox" name="reset" value="1" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
                     Reset conversation first
                 </label>
             </div>
         </div>
-        <button class="px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">Run Test</button>
+        <button class="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">Run Test</button>
     </form>
 
     @if(isset($conversations) && $conversations->count())

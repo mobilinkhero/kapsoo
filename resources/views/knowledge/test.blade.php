@@ -4,8 +4,8 @@
 <div class="max-w-3xl space-y-4">
     <h2 class="text-2xl font-bold text-slate-900">Test RAG Retrieval</h2>
     <form method="GET" action="{{ route('knowledge.test') }}" class="flex gap-3">
-        <input name="q" value="{{ $query }}" placeholder="Ask a question..." class="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-        <button class="px-5 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">Ask</button>
+        <input name="q" value="{{ $query }}" placeholder="Ask a question..." class="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">
+        <button class="px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">Ask</button>
     </form>
 
     @if($query)
@@ -20,7 +20,7 @@
             <h3 class="font-semibold text-slate-900 mb-2">Retrieved Chunks ({{ count($chunks) }})</h3>
             @forelse($chunks as $i => $c)
                 <div class="mb-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-sm">
-                    <div class="text-xs text-indigo-600 font-semibold mb-1">
+                    <div class="text-xs text-emerald-600 font-semibold mb-1">
                         Score: {{ $scores[$i]['score'] ?? '?' }} (sem {{ $scores[$i]['semantic'] ?? '?' }}, kw {{ $scores[$i]['keyword'] ?? '?' }}) — {{ $scores[$i]['title'] ?? '' }}
                     </div>
                     <div class="text-slate-700">{{ $c }}</div>

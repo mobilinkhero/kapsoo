@@ -24,8 +24,8 @@
         <div id="metaBox" class="px-4 py-2 border-t border-slate-100 text-xs text-slate-500 bg-white"></div>
         <form id="chatForm" class="p-3 border-t border-slate-200 bg-white flex gap-2">
             @csrf
-            <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-            <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">Send</button>
+            <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">Send</button>
         </form>
     </div>
 </div>
@@ -45,7 +45,7 @@
         const wrap = document.createElement('div');
         wrap.className = 'flex ' + (dir === 'out' ? 'justify-end' : 'justify-start');
         const b = document.createElement('div');
-        b.className = 'max-w-[75%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap ' + (dir === 'out' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-800');
+        b.className = 'max-w-[75%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap ' + (dir === 'out' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-800');
         b.textContent = text;
         wrap.appendChild(b);
         if (extra) {
@@ -82,7 +82,7 @@
 
             if (data.inbound.tags && data.inbound.tags.length) {
                 const t = document.createElement('div');
-                t.className = 'text-[10px] text-indigo-500 ml-1';
+                t.className = 'text-[10px] text-emerald-500 ml-1';
                 t.textContent = 'tags: ' + data.inbound.tags.join(', ') + (data.inbound.confidence != null ? ' · conf ' + data.inbound.confidence : '');
                 chatBox.appendChild(t);
             }

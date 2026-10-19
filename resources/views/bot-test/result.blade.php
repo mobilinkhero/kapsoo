@@ -20,7 +20,7 @@
             Handoff triggered: {{ $inbound->ai_handoff_triggered ? 'yes' : 'no' }}
         </div>
         @if($inbound->ai_suggested_reply)
-            <div class="mt-3 p-3 rounded-lg bg-indigo-50 border border-indigo-200 text-sm text-indigo-900 whitespace-pre-wrap">
+            <div class="mt-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-900 whitespace-pre-wrap">
                 <span class="font-semibold">Suggested reply:</span> {{ $inbound->ai_suggested_reply }}
             </div>
         @endif

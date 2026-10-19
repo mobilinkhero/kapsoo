@@ -13,14 +13,14 @@
                 <button class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition">Reindex All</button>
             </form>
             <a href="{{ route('knowledge.test') }}" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition">Test RAG</a>
-            <a href="{{ route('knowledge.create') }}" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">+ Add Document</a>
+            <a href="{{ route('knowledge.create') }}" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">+ Add Document</a>
         </div>
     </div>
 
     <form method="POST" action="{{ route('knowledge.importUrl') }}" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row gap-3">
         @csrf
-        <input name="url" type="url" required placeholder="https://example.com/article" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-        <input name="title" placeholder="Title (optional)" class="sm:w-48 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+        <input name="url" type="url" required placeholder="https://example.com/article" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">
+        <input name="title" placeholder="Title (optional)" class="sm:w-48 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">
         <button class="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition">Import URL</button>
     </form>
 
@@ -47,7 +47,7 @@
                         <td class="px-4 py-3">{{ $doc->active ? 'Yes' : 'No' }}</td>
                         <td class="px-4 py-3 text-slate-500">{{ $doc->updated_at?->diffForHumans() }}</td>
                         <td class="px-4 py-3 text-right space-x-2">
-                            <a href="{{ route('knowledge.edit', $doc) }}" class="text-indigo-600 hover:underline">Edit</a>
+                            <a href="{{ route('knowledge.edit', $doc) }}" class="text-emerald-600 hover:underline">Edit</a>
                             <form method="POST" action="{{ route('knowledge.destroy', $doc) }}" class="inline" onsubmit="return confirm('Delete?')">
                                 @csrf @method('DELETE')
                                 <button class="text-red-600 hover:underline">Delete</button>
