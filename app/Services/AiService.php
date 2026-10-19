@@ -35,6 +35,23 @@ class AiService
 
         $contact = $conversation->contact;
 
+        // Transcribe voice notes / describe images so the AI can handle them
+        if (empty($message->body) && ! empty($message->media_url)) {
+            if (in_array($message->type, ['audio', 'voice', 'ptt'], true)) {
+                $text = $this->openai->transcribe($message->media_url);
+                if ($text) {
+                    $message->update(['body' => $text]);
+                    $message->refresh();
+                }
+            } elseif (in_array($message->type, ['image', 'sticker'], true)) {
+                $desc = $this->openai->visionDescribe($message->media_url);
+                if ($desc) {
+                    $message->update(['body' => '[Image: '.$desc.']']);
+                    $message->refresh();
+                }
+            }
+        }
+
         try {
             $result = $this->analyze($conversation, $message, $contact);
         } catch (\Throwable $e) {
@@ -257,21 +274,23 @@ class AiService
         if (! empty($metadata['lead_stage'])) {
             $lines[] = "Known lead stage: {$metadata['lead_stage']} (score: ".($metadata['lead_score'] ?? 'n/a').').';
         }
+        if (! empty($metadata['ai_profile'])) {
+            $lines[] = 'Customer summary: '.$metadata['ai_profile'];
+        }
         if (! empty($metadata['ai_tags'])) {
             $lines[] = 'Known tags: '.implode(', ', (array) $metadata['ai_tags']).'.';
         }
 
         $log = $metadata['ai_memory'] ?? [];
         if (is_array($log) && ! empty($log)) {
-            $lines[] = 'Previous interactions with this customer (most recent last):';
-            foreach (array_slice($log, -6) as $entry) {
+            $lines[] = 'Most recent exchanges (most recent last):';
+            foreach (array_slice($log, -4) as $entry) {
                 $in = trim((string) ($entry['inbound'] ?? ''));
                 $out = trim((string) ($entry['reply'] ?? ''));
-                $t = implode(', ', (array) ($entry['tags'] ?? []));
                 if ($in === '' && $out === '') {
                     continue;
                 }
-                $lines[] = "- Customer said: \"{$in}\" | AI replied: \"{$out}\" | tags: {$t}";
+                $lines[] = "- Customer: \"{$in}\" | AI: \"{$out}\"";
             }
         }
 
@@ -311,6 +330,14 @@ class AiService
             (array) ($metadata['ai_tags'] ?? []),
             (array) ($result['tags'] ?? [])
         )));
+
+        // Periodically compress the raw log into a customer profile (every 3 exchanges)
+        if (count($log) % 3 === 0 || count($log) === 1) {
+            $profile = $this->openai->summarizeMemory($log);
+            if ($profile) {
+                $metadata['ai_profile'] = $profile;
+            }
+        }
 
         $contact->metadata = $metadata;
         try {

@@ -115,6 +115,99 @@ class OpenAIService
         return $response->json('data.0.embedding');
     }
 
+    public function transcribe(string $mediaUrl): ?string
+    {
+        if (empty($this->apiKey) || empty($mediaUrl)) {
+            return null;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0',
+            ])->timeout(60)->get($mediaUrl);
+
+            if ($response->failed()) {
+                Log::error('Whisper download failed', ['status' => $response->status(), 'url' => $mediaUrl]);
+
+                return null;
+            }
+
+            $contents = $response->body();
+            $path = parse_url($mediaUrl, PHP_URL_PATH) ?: 'audio.ogg';
+            $filename = basename($path);
+            if (! pathinfo($filename, PATHINFO_EXTENSION)) {
+                $filename .= '.ogg';
+            }
+
+            $res = Http::withHeaders([
+                'Authorization' => 'Bearer '.$this->apiKey,
+            ])->timeout(120)->attach('file', $contents, $filename)->post($this->baseUrl.'/audio/transcriptions', [
+                'model' => 'whisper-1',
+                'response_format' => 'text',
+            ]);
+
+            if ($res->failed()) {
+                Log::error('Whisper transcription failed', ['status' => $res->status(), 'body' => $res->body()]);
+
+                return null;
+            }
+
+            return trim($res->body());
+        } catch (\Throwable $e) {
+            Log::error('Whisper exception', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    public function visionDescribe(string $imageUrl, string $prompt = 'Describe what this image shows in one or two sentences, focusing on any product, issue, or request relevant to customer support.'): ?string
+    {
+        if (empty($this->apiKey) || empty($imageUrl)) {
+            return null;
+        }
+
+        $messages = [[
+            'role' => 'user',
+            'content' => [
+                ['type' => 'text', 'text' => $prompt],
+                ['type' => 'image_url', 'image_url' => ['url' => $imageUrl]],
+            ],
+        ]];
+
+        $res = $this->chat($messages, ['temperature' => 0.2]);
+
+        if (! $res['ok']) {
+            return null;
+        }
+
+        return trim((string) $res['content']);
+    }
+
+    public function summarizeMemory(array $log): ?string
+    {
+        if (empty($this->apiKey) || empty($log)) {
+            return null;
+        }
+
+        $lines = [];
+        foreach ($log as $entry) {
+            $lines[] = 'Customer: '.($entry['inbound'] ?? '').' | AI: '.($entry['reply'] ?? '').' | tags: '.implode(',', (array) ($entry['tags'] ?? []));
+        }
+
+        $prompt = "Summarize this customer's history into a concise 3-4 sentence profile capturing their needs, preferences, issues, and current lead status. Be factual and avoid repetition.\n\n".implode("\n", $lines);
+
+        $res = $this->chat([
+            ['role' => 'system', 'content' => 'You are a CRM assistant that writes concise customer profiles.'],
+            ['role' => 'user', 'content' => $prompt],
+        ], ['temperature' => 0.3]);
+
+        if (! $res['ok']) {
+            return null;
+        }
+
+        return trim((string) $res['content']);
+    }
+
     public function embedMany(array $texts): array
     {
         if (empty($texts)) {
