@@ -10,7 +10,7 @@
 <body class="h-full bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 fade-in">
         <div class="flex items-center gap-3 mb-6">
-            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xl">K</div>
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-xl">K</div>
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">Kapso WhatsApp</h1>
                 <p class="text-sm text-slate-500">Sign in to your workspace</p>
@@ -37,7 +37,7 @@
                     Remember me
                 </label>
             </div>
-            <button class="w-full py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition shadow-sm">Sign in</button>
+            <button class="w-full py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-600 transition shadow-sm">Sign in</button>
         </form>
     </div>
 </body>

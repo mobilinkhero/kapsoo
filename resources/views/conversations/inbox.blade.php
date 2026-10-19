@@ -271,10 +271,10 @@
         <div id="waiAiPanel" class="px-3 py-2 bg-emerald-50 border-t border-emerald-100 text-xs space-y-2">
             <div class="flex flex-wrap gap-1" id="waiTags"></div>
             <div id="waiSuggestionWrap" class="hidden">
-                <div class="text-emerald-700 font-semibold mb-1">AI suggested reply:</div>
+                <div class="text-emerald-600 font-semibold mb-1">AI suggested reply:</div>
                 <div id="waiSuggestion" class="bg-white border border-emerald-200 rounded-lg px-3 py-2 text-slate-800 whitespace-pre-wrap"></div>
                 <div class="flex gap-2 mt-2">
-                    <button type="button" id="waiSendSuggestion" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">Send suggestion</button>
+                    <button type="button" id="waiSendSuggestion" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-600 transition">Send suggestion</button>
                     <button type="button" id="waiDismissSuggestion" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition">Dismiss</button>
                 </div>
             </div>
@@ -422,7 +422,7 @@
                 if (modeSel) modeSel.value = data.ai_mode || 'off';
                 const tagsEl = document.getElementById('waiTags');
                 if (tagsEl) {
-                    tagsEl.innerHTML = (data.ai_tags || []).map(t => '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">' + esc(t) + '</span>').join('');
+                    tagsEl.innerHTML = (data.ai_tags || []).map(t => '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600">' + esc(t) + '</span>').join('');
                 }
                 const badge = document.getElementById('waiHandoffBadge');
                 if (badge) {

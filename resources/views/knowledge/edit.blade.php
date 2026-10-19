@@ -30,7 +30,7 @@
             Active
         </label>
         <div class="flex gap-3">
-            <button class="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">Update & Re-index</button>
+            <button class="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-600 transition">Update & Re-index</button>
             <a href="{{ route('knowledge.index') }}" class="px-6 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition">Cancel</a>
         </div>
     </form>

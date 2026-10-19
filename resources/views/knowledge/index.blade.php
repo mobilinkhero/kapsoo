@@ -13,7 +13,7 @@
                 <button class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition">Reindex All</button>
             </form>
             <a href="{{ route('knowledge.test') }}" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition">Test RAG</a>
-            <a href="{{ route('knowledge.create') }}" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">+ Add Document</a>
+            <a href="{{ route('knowledge.create') }}" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-600 transition">+ Add Document</a>
         </div>
     </div>
 
@@ -25,7 +25,7 @@
     </form>
 
     @if(session('success'))
-        <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 text-sm">{{ session('success') }}</div>
+        <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 px-4 py-3 text-sm">{{ session('success') }}</div>
     @endif
 
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

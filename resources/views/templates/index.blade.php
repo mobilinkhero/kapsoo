@@ -11,7 +11,7 @@
             <form method="POST" action="{{ route('templates.sync') }}">@csrf
                 <button class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition shadow-sm">Sync from Kapso</button>
             </form>
-            <a href="{{ route('templates.create') }}" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:from-emerald-700 hover:to-teal-700 transition shadow-lg shadow-emerald-500/25">New Template</a>
+            <a href="{{ route('templates.create') }}" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-600 text-white font-semibold hover:from-emerald-600 hover:to-emerald-700 transition shadow-lg shadow-emerald-500/25">New Template</a>
         </div>
     </div>
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
