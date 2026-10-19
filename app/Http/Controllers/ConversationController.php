@@ -75,6 +75,9 @@ class ConversationController extends Controller
         switch ($type) {
             case 'text':
                 if (empty($body)) {
+                    if ($request->wantsJson()) {
+                        return response()->json(['ok' => false, 'error' => 'Text body is required.'], 422);
+                    }
                     return redirect()->back()->with('error', 'Text body is required.');
                 }
                 $payload = ['text' => ['body' => $body]];
@@ -85,6 +88,9 @@ class ConversationController extends Controller
             case 'document':
             case 'sticker':
                 if (empty($mediaUrl)) {
+                    if ($request->wantsJson()) {
+                        return response()->json(['ok' => false, 'error' => 'Media URL is required.'], 422);
+                    }
                     return redirect()->back()->with('error', 'Media URL is required.');
                 }
                 $media = ['link' => $mediaUrl];
@@ -99,6 +105,9 @@ class ConversationController extends Controller
                 break;
             case 'location':
                 if (empty($data['latitude']) || empty($data['longitude'])) {
+                    if ($request->wantsJson()) {
+                        return response()->json(['ok' => false, 'error' => 'Latitude and longitude are required.'], 422);
+                    }
                     return redirect()->back()->with('error', 'Latitude and longitude are required.');
                 }
                 $loc = [
@@ -116,6 +125,9 @@ class ConversationController extends Controller
             $result = $kapso->send($contact->phone, $type, $payload);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Kapso send exception', ['error' => $e->getMessage()]);
+            if ($request->wantsJson()) {
+                return response()->json(['ok' => false, 'error' => 'Failed to send: ' . $e->getMessage()], 500);
+            }
             return redirect()->route('conversations.show', $conversation)->with('error', 'Failed to send: ' . $e->getMessage());
         }
 
@@ -124,6 +136,9 @@ class ConversationController extends Controller
         if (!$messageId) {
             $error = $result['error']['message'] ?? $result['error'] ?? json_encode($result);
             \Illuminate\Support\Facades\Log::error('Kapso send failed', ['response' => $result, 'to' => $contact->phone]);
+            if ($request->wantsJson()) {
+                return response()->json(['ok' => false, 'error' => 'Kapso rejected the message: ' . (is_string($error) ? $error : json_encode($error))], 422);
+            }
             return redirect()->route('conversations.show', $conversation)->with('error', 'Kapso rejected the message: ' . (is_string($error) ? $error : json_encode($error)));
         }
 
@@ -140,6 +155,20 @@ class ConversationController extends Controller
 
         $conversation->update(['last_message_at' => now()]);
 
+        $newMessage = [
+            'id' => Message::latest()->first()->id,
+            'direction' => 'outbound',
+            'type' => $type,
+            'body' => $body,
+            'media_url' => $mediaUrl,
+            'status' => 'sent',
+            'time' => now()->format('H:i'),
+        ];
+
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => $newMessage]);
+        }
+
         return redirect()->route('conversations.show', $conversation)->with('success', 'Message sent.');
     }
 
@@ -147,6 +176,31 @@ class ConversationController extends Controller
     {
         $conversation->update(['unread_count' => 0]);
         return response()->json(['ok' => true]);
+    }
+
+    public function data(Conversation $conversation)
+    {
+        $conversation->load('contact', 'messages');
+        $conversation->update(['unread_count' => 0]);
+
+        return response()->json([
+            'id' => $conversation->id,
+            'contact' => [
+                'name' => $conversation->contact->name ?? $conversation->contact->phone,
+                'phone' => $conversation->contact->phone,
+                'initial' => strtoupper(substr($conversation->contact->name ?? $conversation->contact->phone, 0, 1)),
+            ],
+            'status' => $conversation->status,
+            'messages' => $conversation->messages->map(fn ($m) => [
+                'id' => $m->id,
+                'direction' => $m->direction,
+                'type' => $m->type,
+                'body' => $m->body,
+                'media_url' => $m->media_url,
+                'status' => $m->status,
+                'time' => $m->sent_at?->format('H:i'),
+            ]),
+        ]);
     }
 
     public function poll(Conversation $conversation, Request $request)

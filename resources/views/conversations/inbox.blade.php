@@ -2,65 +2,80 @@
 @section('title', 'Inbox')
 @section('content')
 @php
-    $initialMessages = $selected ? $selected->messages->map(fn ($m) => [
-        'id' => $m->id,
-        'direction' => $m->direction,
-        'type' => $m->type,
-        'body' => $m->body,
-        'media_url' => $m->media_url,
-        'status' => $m->status,
-        'time' => $m->sent_at?->format('H:i'),
-    ]) : collect();
+    $convList = $conversations->map(fn ($c) => [
+        'id' => $c->id,
+        'name' => $c->contact->name ?? $c->contact->phone,
+        'phone' => $c->contact->phone,
+        'initial' => strtoupper(substr($c->contact->name ?? $c->contact->phone, 0, 1)),
+        'last_message' => $c->latestMessage->body ?? 'No messages',
+        'unread' => $c->unread_count,
+        'time' => $c->last_message_at?->diffForHumans(null, true),
+    ]);
+    $selectedData = null;
+    if ($selected) {
+        $selectedData = [
+            'id' => $selected->id,
+            'name' => $selected->contact->name ?? $selected->contact->phone,
+            'phone' => $selected->contact->phone,
+            'initial' => strtoupper(substr($selected->contact->name ?? $selected->contact->phone, 0, 1)),
+            'status' => $selected->status,
+            'messages' => $selected->messages->map(fn ($m) => [
+                'id' => $m->id,
+                'direction' => $m->direction,
+                'type' => $m->type,
+                'body' => $m->body,
+                'media_url' => $m->media_url,
+                'status' => $m->status,
+                'time' => $m->sent_at?->format('H:i'),
+            ]),
+        ];
+    }
 @endphp
-<div class="flex h-[calc(100vh-8rem)] gap-4">
+<div class="flex h-[calc(100vh-8rem)] gap-3" x-data="inboxApp({{ $convList->toJson() }}, {{ json_encode($selectedData) }})" x-init="init()">
     <!-- Conversation list -->
-    <div class="w-full lg:w-80 xl:w-96 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col {{ $selected ? 'hidden lg:flex' : 'flex' }}">
-        <div class="px-4 py-3 border-b border-slate-100">
+    <div class="w-full lg:w-80 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col" :class="selected ? 'hidden lg:flex' : 'flex'">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <h3 class="font-semibold text-slate-900">Chats</h3>
+            <span class="text-xs text-slate-400" x-text="conversations.length + ' conversations'"></span>
         </div>
         <div class="flex-1 overflow-y-auto scrollbar-thin">
-            @forelse($conversations as $conv)
-                <a href="{{ route('conversations.index', ['c' => $conv->id]) }}" class="flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition {{ $selected && $selected->id === $conv->id ? 'bg-emerald-50' : '' }}">
-                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-semibold shrink-0">
-                        {{ strtoupper(substr($conv->contact->name ?? $conv->contact->phone, 0, 1)) }}
-                    </div>
+            <template x-for="c in conversations" :key="c.id">
+                <button @click="select(c.id)" class="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition text-left" :class="selected && selected.id === c.id ? 'bg-emerald-50' : ''">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-semibold shrink-0" x-text="c.initial"></div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between">
-                            <p class="font-medium text-slate-900 truncate text-sm">{{ $conv->contact->name ?? $conv->contact->phone }}</p>
-                            <span class="text-[10px] text-slate-400">{{ $conv->last_message_at?->diffForHumans(null, true) }}</span>
+                            <p class="font-medium text-slate-900 truncate text-sm" x-text="c.name"></p>
+                            <span class="text-[10px] text-slate-400" x-text="c.time"></span>
                         </div>
-                        <p class="text-xs text-slate-500 truncate">{{ $conv->latestMessage->body ?? 'No messages' }}</p>
+                        <p class="text-xs text-slate-500 truncate" x-text="c.last_message"></p>
                     </div>
-                    @if($conv->unread_count > 0)
-                        <span class="px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-500 text-white font-medium">{{ $conv->unread_count }}</span>
-                    @endif
-                </a>
-            @empty
-                <div class="px-4 py-12 text-center text-slate-400 text-sm">No conversations yet</div>
-            @endforelse
+                    <template x-if="c.unread > 0">
+                        <span class="px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-500 text-white font-medium" x-text="c.unread"></span>
+                    </template>
+                </button>
+            </template>
+            <div x-show="conversations.length === 0" class="px-4 py-12 text-center text-slate-400 text-sm">No conversations yet</div>
         </div>
     </div>
 
     <!-- Chat panel -->
-    <div class="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col {{ $selected ? 'flex' : 'hidden lg:flex' }}">
-        @if($selected)
-            <div x-data="chatPoll({{ $selected->id }}, {{ $initialMessages->toJson() }})" x-init="init()" class="flex flex-col h-full">
-                <!-- Chat header -->
+    <div class="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col" :class="selected ? 'flex' : 'hidden lg:flex'">
+        <template x-if="selected">
+            <div class="flex flex-col h-full">
+                <!-- Header -->
                 <div class="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-                    <a href="{{ route('conversations.index') }}" class="lg:hidden p-2 rounded-xl hover:bg-slate-100">
+                    <button @click="selected = null" class="lg:hidden p-2 rounded-xl hover:bg-slate-100">
                         <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                    </a>
-                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-semibold">
-                        {{ strtoupper(substr($selected->contact->name ?? $selected->contact->phone, 0, 1)) }}
-                    </div>
+                    </button>
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-semibold" x-text="selected.contact.initial"></div>
                     <div class="flex-1 min-w-0">
-                        <p class="font-semibold text-slate-900 truncate">{{ $selected->contact->name ?? $selected->contact->phone }}</p>
-                        <p class="text-xs text-slate-500 truncate">{{ $selected->contact->phone }}</p>
+                        <p class="font-semibold text-slate-900 truncate" x-text="selected.contact.name"></p>
+                        <p class="text-xs text-slate-500 truncate" x-text="selected.contact.phone"></p>
                     </div>
                 </div>
 
                 <!-- Messages -->
-                <div class="flex-1 overflow-y-auto bg-slate-50 p-4 space-y-2 scrollbar-thin" x-ref="box">
+                <div class="flex-1 overflow-y-auto bg-slate-50 p-3 space-y-2 scrollbar-thin" x-ref="box">
                     <template x-for="m in messages" :key="m.id">
                         <div class="flex" :class="m.direction === 'outbound' ? 'justify-end' : 'justify-start'">
                             <div class="max-w-[70%] px-3 py-2 rounded-2xl text-sm shadow-sm" :class="m.direction === 'outbound' ? 'bg-emerald-500 text-white rounded-br-md' : 'bg-white text-slate-800 rounded-bl-md border border-slate-200'">
@@ -95,9 +110,8 @@
                 </div>
 
                 <!-- Composer -->
-                <div class="border-t border-slate-100 p-3" x-data="{ msgType: 'text', preview: null }">
-                    <form method="POST" action="{{ route('conversations.send', $selected) }}" enctype="multipart/form-data" class="space-y-2">
-                        @csrf
+                <div class="border-t border-slate-100 p-3" x-data="{ msgType: 'text' }">
+                    <form @submit.prevent="send($event)" enctype="multipart/form-data" class="space-y-2">
                         <input type="hidden" name="type" :value="msgType">
                         <div class="flex gap-1 flex-wrap">
                             <template x-for="t in ['text','image','video','audio','document','location','sticker']" :key="t">
@@ -129,7 +143,8 @@
                     </form>
                 </div>
             </div>
-        @else
+        </template>
+        <template x-if="!selected">
             <div class="flex-1 flex items-center justify-center text-slate-400">
                 <div class="text-center">
                     <div class="w-20 h-20 mx-auto rounded-3xl bg-slate-100 flex items-center justify-center mb-4">
@@ -139,23 +154,45 @@
                     <p class="text-sm text-slate-400 mt-1">Choose a chat from the list to start messaging.</p>
                 </div>
             </div>
-        @endif
+        </template>
     </div>
 </div>
 
 <script>
-function chatPoll(convId, initial) {
+function inboxApp(convs, selected) {
     return {
-        messages: initial || [],
+        conversations: convs || [],
+        selected: selected || null,
+        messages: selected ? selected.messages : [],
         timer: null,
-        init() {
-            this.scrollToBottom();
-            this.timer = setInterval(() => this.poll(), 4000);
+        async init() {
+            if (this.selected) {
+                this.scrollToBottom();
+                this.timer = setInterval(() => this.poll(), 4000);
+            }
+        },
+        async select(id) {
+            if (this.selected && this.selected.id === id) return;
+            this.selected = null;
+            this.messages = [];
+            try {
+                const res = await fetch(`/conversations/${id}/data`, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+                const data = await res.json();
+                this.selected = data;
+                this.messages = data.messages || [];
+                // update unread in list
+                const c = this.conversations.find(x => x.id === id);
+                if (c) c.unread = 0;
+                this.$nextTick(() => this.scrollToBottom());
+                if (this.timer) clearInterval(this.timer);
+                this.timer = setInterval(() => this.poll(), 4000);
+            } catch (e) { console.error(e); }
         },
         async poll() {
+            if (!this.selected) return;
             const lastId = this.messages.length ? this.messages[this.messages.length - 1].id : 0;
             try {
-                const res = await fetch(`/conversations/${convId}/poll?after_id=${lastId}`, {
+                const res = await fetch(`/conversations/${this.selected.id}/poll?after_id=${lastId}`, {
                     headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 });
                 const data = await res.json();
@@ -164,6 +201,25 @@ function chatPoll(convId, initial) {
                     this.$nextTick(() => this.scrollToBottom());
                 }
             } catch (e) { console.error(e); }
+        },
+        async send(e) {
+            const form = e.target;
+            const formData = new FormData(form);
+            try {
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                });
+                const data = await res.json();
+                if (data.ok && data.message) {
+                    this.messages = this.messages.concat(data.message);
+                    form.reset();
+                    this.$nextTick(() => this.scrollToBottom());
+                } else if (data.error) {
+                    alert(data.error);
+                }
+            } catch (err) { console.error(err); alert('Send failed'); }
         },
         scrollToBottom() {
             const box = this.$refs.box;
