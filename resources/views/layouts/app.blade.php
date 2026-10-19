@@ -57,8 +57,15 @@
                 </a>
             @endforeach
         </nav>
-        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 text-xs text-slate-400">
-            Kapso WhatsApp v1.0
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200">
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-100 transition text-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    Sign out
+                </button>
+            </form>
+            <p class="text-xs text-slate-400 mt-2 text-center">Kapso WhatsApp v1.0</p>
         </div>
     </aside>
 
