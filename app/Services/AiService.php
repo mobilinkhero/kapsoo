@@ -127,7 +127,8 @@ class AiService
         $systemPrompt = $this->setting('ai_system_prompt', $this->defaultSystemPrompt());
 
         // RAG context
-        $ragChunks = $this->kb->search($message->body ?? '', 5);
+        $ragResult = $this->kb->search($message->body ?? '', 5, ['hyde' => false]);
+        $ragChunks = $ragResult['chunks'] ?? [];
         $ragContext = empty($ragChunks) ? '' : "Relevant knowledge base:\n- ".implode("\n- ", $ragChunks);
 
         // Recent history (last 12 messages)

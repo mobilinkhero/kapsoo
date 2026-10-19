@@ -72,7 +72,10 @@ class KnowledgeDocumentController extends Controller
         $chunks = [];
         $answer = null;
         if ($query) {
-            $chunks = $this->kb->search($query, 6);
+            $searchResult = $this->kb->search($query, 6, ['rerank' => false]);
+            $chunks = $searchResult['chunks'] ?? [];
+            $scores = $searchResult['scores'] ?? [];
+            $queries = $searchResult['queries'] ?? [$query];
             if ($this->openai->isConfigured()) {
                 $context = empty($chunks) ? '' : "Knowledge base context:\n- ".implode("\n- ", $chunks);
                 $messages = [
@@ -87,7 +90,7 @@ class KnowledgeDocumentController extends Controller
             }
         }
 
-        return view('knowledge.test', compact('query', 'chunks', 'answer'));
+        return view('knowledge.test', compact('query', 'chunks', 'scores', 'queries', 'answer'));
     }
 
     public function store(Request $request)

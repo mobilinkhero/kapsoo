@@ -14,9 +14,17 @@
             <p class="text-slate-700 whitespace-pre-wrap">{{ $answer ?? 'No answer (OpenAI not configured?)' }}</p>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            @if(!empty($queries) && count($queries) > 1)
+                <div class="mb-3 text-xs text-slate-500">Expanded queries: {{ implode(' | ', $queries) }}</div>
+            @endif
             <h3 class="font-semibold text-slate-900 mb-2">Retrieved Chunks ({{ count($chunks) }})</h3>
-            @forelse($chunks as $c)
-                <div class="mb-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-700">{{ $c }}</div>
+            @forelse($chunks as $i => $c)
+                <div class="mb-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-sm">
+                    <div class="text-xs text-indigo-600 font-semibold mb-1">
+                        Score: {{ $scores[$i]['score'] ?? '?' }} (sem {{ $scores[$i]['semantic'] ?? '?' }}, kw {{ $scores[$i]['keyword'] ?? '?' }}) — {{ $scores[$i]['title'] ?? '' }}
+                    </div>
+                    <div class="text-slate-700">{{ $c }}</div>
+                </div>
             @empty
                 <p class="text-slate-500 text-sm">No chunks retrieved.</p>
             @endforelse
