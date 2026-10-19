@@ -25,7 +25,8 @@
     </style>
 </head>
 <body class="h-full bg-slate-100 text-slate-800 antialiased">
-<div x-data="{ sidebarOpen: false, mobileNav: false }" class="min-h-full">
+@php $isInboxPage = request()->routeIs('conversations.*'); @endphp
+<div x-data="{ sidebarOpen: false, mobileNav: false, sidebarCollapsed: false }" x-init="sidebarCollapsed = (localStorage.getItem('appSidebarCollapsed') === '1')" class="min-h-full" :class="sidebarCollapsed ? 'app-sidebar-collapsed' : ''">
     <!-- Mobile top bar -->
     <header class="lg:hidden sticky top-0 z-40 glass border-b border-slate-200/60 px-4 py-3 flex items-center justify-between">
         <button @click="sidebarOpen = true" class="p-2 rounded-xl hover:bg-slate-200/60 transition">
@@ -42,7 +43,7 @@
     <div x-show="sidebarOpen" x-cloak @click="sidebarOpen = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden" x-transition.opacity></div>
 
     <!-- Sidebar -->
-    <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" class="fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 transform transition-transform duration-300 ease-out lg:translate-x-0 flex flex-col">
+    <aside :class="[sidebarOpen ? 'translate-x-0' : '-translate-x-full', sidebarCollapsed ? 'lg:-translate-x-full' : 'lg:translate-x-0']" class="fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 transform transition-transform duration-300 ease-out flex flex-col">
         <!-- Brand -->
         <div class="h-18 flex items-center px-6 py-5 border-b border-slate-800">
             <div class="flex items-center gap-3">
@@ -54,6 +55,9 @@
             </div>
             <button @click="sidebarOpen = false" class="ml-auto lg:hidden p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <button @click="sidebarCollapsed = true; localStorage.setItem('appSidebarCollapsed', '1')" class="hidden lg:block ml-auto p-1.5 rounded-lg hover:bg-slate-800 text-slate-400" title="Collapse sidebar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
             </button>
         </div>
 
@@ -105,9 +109,15 @@
         </div>
     </aside>
 
+    <!-- Desktop sidebar expand button (shown when collapsed) -->
+    <button x-show="sidebarCollapsed" x-cloak @click="sidebarCollapsed = false; localStorage.setItem('appSidebarCollapsed', '0')" class="hidden lg:flex fixed top-4 left-4 z-50 items-center justify-center w-9 h-9 rounded-xl bg-slate-900 text-white shadow-lg hover:bg-slate-800 transition" title="Show sidebar">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+
     <!-- Main -->
-    <main class="lg:pl-72 min-h-screen">
+    <main :class="sidebarCollapsed ? 'lg:pl-0' : 'lg:pl-72'" class="min-h-screen transition-all duration-300">
         <!-- Top bar -->
+        @unless($isInboxPage)
         <header class="sticky top-0 z-30 glass border-b border-slate-200/60">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
                 <div>
@@ -125,8 +135,9 @@
                 </div>
             </div>
         </header>
+        @endunless
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="{{ $isInboxPage ? 'p-0' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6' }}">
             @if(session('success'))
                 <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)" x-transition class="mb-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-5 py-3.5 flex items-center justify-between fade-in">
                     <span>{{ session('success') }}</span>

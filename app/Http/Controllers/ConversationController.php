@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Services\KapsoService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ConversationController extends Controller
 {
@@ -16,11 +17,13 @@ class ConversationController extends Controller
             ->orderByDesc('last_message_at')
             ->paginate(20);
 
+        $messages = fn ($query) => $query->orderBy('sent_at')->orderBy('id');
+
         $selected = null;
         if ($request->filled('c')) {
-            $selected = Conversation::with('contact', 'messages')->find($request->c);
+            $selected = Conversation::with(['contact', 'messages' => $messages])->find($request->c);
         } elseif ($conversations->count()) {
-            $selected = Conversation::with('contact', 'messages')->find($conversations->first()->id);
+            $selected = Conversation::with(['contact', 'messages' => $messages])->find($conversations->first()->id);
         }
 
         if ($selected) {
@@ -56,13 +59,13 @@ class ConversationController extends Controller
         $mediaUrl = $data['media_url'] ?? null;
         if ($request->hasFile('media_file')) {
             $dir = public_path('uploads');
-            if (!is_dir($dir)) {
+            if (! is_dir($dir)) {
                 mkdir($dir, 0755, true);
             }
             $file = $request->file('media_file');
-            $filename = time() . '_' . $file->getClientOriginalName();
+            $filename = time().'_'.$file->getClientOriginalName();
             $file->move($dir, $filename);
-            $mediaUrl = asset('uploads/' . $filename);
+            $mediaUrl = asset('uploads/'.$filename);
         }
 
         // Build Kapso payload based on type
@@ -75,6 +78,7 @@ class ConversationController extends Controller
                     if ($request->wantsJson()) {
                         return response()->json(['ok' => false, 'error' => 'Text body is required.'], 422);
                     }
+
                     return redirect()->back()->with('error', 'Text body is required.');
                 }
                 $payload = ['text' => ['body' => $body]];
@@ -88,13 +92,14 @@ class ConversationController extends Controller
                     if ($request->wantsJson()) {
                         return response()->json(['ok' => false, 'error' => 'Media URL is required.'], 422);
                     }
+
                     return redirect()->back()->with('error', 'Media URL is required.');
                 }
                 $media = ['link' => $mediaUrl];
-                if (!empty($data['caption'])) {
+                if (! empty($data['caption'])) {
                     $media['caption'] = $data['caption'];
                 }
-                if ($type === 'document' && !empty($data['body'])) {
+                if ($type === 'document' && ! empty($data['body'])) {
                     $media['filename'] = $data['body'];
                 }
                 $payload = [$type => $media];
@@ -105,14 +110,19 @@ class ConversationController extends Controller
                     if ($request->wantsJson()) {
                         return response()->json(['ok' => false, 'error' => 'Latitude and longitude are required.'], 422);
                     }
+
                     return redirect()->back()->with('error', 'Latitude and longitude are required.');
                 }
                 $loc = [
                     'latitude' => (string) $data['latitude'],
                     'longitude' => (string) $data['longitude'],
                 ];
-                if (!empty($data['location_name'])) $loc['name'] = $data['location_name'];
-                if (!empty($data['location_address'])) $loc['address'] = $data['location_address'];
+                if (! empty($data['location_name'])) {
+                    $loc['name'] = $data['location_name'];
+                }
+                if (! empty($data['location_address'])) {
+                    $loc['address'] = $data['location_address'];
+                }
                 $payload = ['location' => $loc];
                 $body = $data['location_name'] ?? 'Location';
                 break;
@@ -121,25 +131,27 @@ class ConversationController extends Controller
         try {
             $result = $kapso->send($contact->phone, $type, $payload);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Kapso send exception', ['error' => $e->getMessage()]);
+            Log::error('Kapso send exception', ['error' => $e->getMessage()]);
             if ($request->wantsJson()) {
-                return response()->json(['ok' => false, 'error' => 'Failed to send: ' . $e->getMessage()], 500);
+                return response()->json(['ok' => false, 'error' => 'Failed to send: '.$e->getMessage()], 500);
             }
-            return redirect()->route('conversations.show', $conversation)->with('error', 'Failed to send: ' . $e->getMessage());
+
+            return redirect()->route('conversations.show', $conversation)->with('error', 'Failed to send: '.$e->getMessage());
         }
 
         $messageId = $result['messages'][0]['id'] ?? null;
 
-        if (!$messageId) {
+        if (! $messageId) {
             $error = $result['error']['message'] ?? $result['error'] ?? json_encode($result);
-            \Illuminate\Support\Facades\Log::error('Kapso send failed', ['response' => $result, 'to' => $contact->phone]);
+            Log::error('Kapso send failed', ['response' => $result, 'to' => $contact->phone]);
             if ($request->wantsJson()) {
-                return response()->json(['ok' => false, 'error' => 'Kapso rejected the message: ' . (is_string($error) ? $error : json_encode($error))], 422);
+                return response()->json(['ok' => false, 'error' => 'Kapso rejected the message: '.(is_string($error) ? $error : json_encode($error))], 422);
             }
-            return redirect()->route('conversations.show', $conversation)->with('error', 'Kapso rejected the message: ' . (is_string($error) ? $error : json_encode($error)));
+
+            return redirect()->route('conversations.show', $conversation)->with('error', 'Kapso rejected the message: '.(is_string($error) ? $error : json_encode($error)));
         }
 
-        Message::create([
+        $message = Message::create([
             'conversation_id' => $conversation->id,
             'kapso_message_id' => $messageId,
             'direction' => 'outbound',
@@ -153,7 +165,7 @@ class ConversationController extends Controller
         $conversation->update(['last_message_at' => now()]);
 
         $newMessage = [
-            'id' => Message::latest()->first()->id,
+            'id' => $message->id,
             'direction' => 'outbound',
             'type' => $type,
             'body' => $body,
@@ -172,12 +184,13 @@ class ConversationController extends Controller
     public function markRead(Conversation $conversation)
     {
         $conversation->update(['unread_count' => 0]);
+
         return response()->json(['ok' => true]);
     }
 
     public function data(Conversation $conversation)
     {
-        $conversation->load('contact', 'messages');
+        $conversation->load(['contact', 'messages' => fn ($query) => $query->orderBy('sent_at')->orderBy('id')]);
         $conversation->update(['unread_count' => 0]);
 
         return response()->json([
@@ -188,16 +201,25 @@ class ConversationController extends Controller
                 'initial' => strtoupper(substr($conversation->contact->name ?? $conversation->contact->phone, 0, 1)),
             ],
             'status' => $conversation->status,
-            'messages' => $conversation->messages->map(fn ($m) => [
-                'id' => $m->id,
-                'direction' => $m->direction,
-                'type' => $m->type,
-                'body' => $m->body,
-                'media_url' => $m->media_url,
-                'status' => $m->status,
-                'time' => $m->sent_at?->format('H:i'),
-            ]),
+            'messages' => $conversation->messages->map(fn ($m) => $this->messagePayload($m)),
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function messagePayload(Message $message): array
+    {
+        return [
+            'id' => $message->id,
+            'direction' => $message->direction,
+            'type' => $message->type,
+            'body' => $message->body,
+            'media_url' => $message->media_url,
+            'status' => $message->status,
+            'time' => $message->sent_at?->format('H:i'),
+            'date_label' => $message->sent_at
+                ? ($message->sent_at->isToday() ? 'Today' : ($message->sent_at->isYesterday() ? 'Yesterday' : $message->sent_at->format('d M Y')))
+                : null,
+        ];
     }
 
     public function poll(Conversation $conversation, Request $request)
@@ -207,15 +229,7 @@ class ConversationController extends Controller
             ->where('id', '>', $afterId)
             ->orderBy('id')
             ->get()
-            ->map(fn ($m) => [
-                'id' => $m->id,
-                'direction' => $m->direction,
-                'type' => $m->type,
-                'body' => $m->body,
-                'media_url' => $m->media_url,
-                'status' => $m->status,
-                'time' => $m->sent_at?->format('H:i'),
-            ]);
+            ->map(fn ($m) => $this->messagePayload($m));
 
         return response()->json([
             'messages' => $messages,
