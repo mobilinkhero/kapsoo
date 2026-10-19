@@ -598,6 +598,31 @@
         });
     }
 
+    document.addEventListener('click', async function (e) {
+        const btn = e.target.closest('.wai-feedback button');
+        if (!btn) return;
+        const wrap = btn.closest('.wai-feedback');
+        const mid = wrap?.dataset.mid;
+        const rating = btn.dataset.rating;
+        if (!mid || !rating) return;
+        const status = wrap.querySelector('.fb-status');
+        try {
+            const res = await fetch('/messages/' + mid + '/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ rating: parseInt(rating) }),
+            });
+            if (res.ok) {
+                if (status) status.textContent = rating === '1' ? 'Thanks!' : 'Noted';
+                btn.disabled = true;
+            }
+        } catch (err) { if (status) status.textContent = 'Error'; }
+    });
+
     window.openPreview = function (src, type) {
         const lb = document.getElementById('waiLightbox');
         const content = document.getElementById('waiLbContent');

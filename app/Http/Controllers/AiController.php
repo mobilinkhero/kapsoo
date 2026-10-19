@@ -74,6 +74,16 @@ class AiController extends Controller
         ]]);
     }
 
+    public function feedback(Request $request, Message $message)
+    {
+        $data = $request->validate([
+            'rating' => 'required|integer|in:-1,1',
+        ]);
+        $message->update(['ai_feedback' => $data['rating']]);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function analyzeNow(Request $request, Conversation $conversation, AiService $ai)
     {
         $lastInbound = $conversation->messages()->where('direction', 'inbound')->latest()->first();

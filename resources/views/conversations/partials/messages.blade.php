@@ -60,6 +60,14 @@
                     <span class="tick">{{ in_array($m->status, ['read', 'delivered']) ? '✓✓' : '✓' }}</span>
                 @endif
             </div>
+            @if($m->direction === 'inbound' && !empty($m->ai_suggested_reply))
+                <div class="wai-feedback" data-mid="{{ $m->id }}" style="margin-top:4px;font-size:11px;color:#667781;">
+                    AI suggestion: {{ \Illuminate\Support\Str::limit($m->ai_suggested_reply, 60) }}
+                    <button type="button" class="fb-up" data-rating="1" style="border:0;background:transparent;cursor:pointer;">👍</button>
+                    <button type="button" class="fb-down" data-rating="-1" style="border:0;background:transparent;cursor:pointer;">👎</button>
+                    <span class="fb-status" style="margin-left:4px;"></span>
+                </div>
+            @endif
         </div>
     </div>
 @endforeach

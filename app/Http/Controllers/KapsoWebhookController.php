@@ -220,6 +220,7 @@ class KapsoWebhookController extends Controller
 
         $conversation->increment('unread_count');
         $conversation->last_message_at = now();
+        $conversation->last_inbound_at = now();
         $conversation->save();
 
         // Trigger AI processing for inbound messages

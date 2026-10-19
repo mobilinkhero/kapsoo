@@ -63,6 +63,7 @@ class AiService
         $message->update([
             'ai_tags' => $result['tags'] ?? [],
             'ai_confidence' => $result['confidence'] ?? null,
+            'ai_sentiment' => $result['sentiment'] ?? null,
             'ai_suggested_reply' => $result['reply'] ?? null,
             'ai_handoff_triggered' => (bool) ($result['handoff'] ?? false),
         ]);
@@ -111,6 +112,18 @@ class AiService
             $conversation->update([
                 'ai_handoff' => true,
                 'handoff_reason' => 'Low AI confidence ('.round($confidence, 2).')',
+            ]);
+        }
+
+        // Sentiment-based escalation: route to a human agent when sentiment is too low
+        $sentiment = (float) ($result['sentiment'] ?? 1);
+        $sentimentThreshold = (float) $this->setting('ai_escalation_sentiment', '0.3');
+        if ($sentiment < $sentimentThreshold) {
+            $escalationUserId = $this->setting('ai_escalation_user_id', null);
+            $conversation->update([
+                'ai_handoff' => true,
+                'handoff_reason' => 'Negative sentiment ('.round($sentiment, 2).')',
+                'assigned_to' => $escalationUserId ?: $conversation->assigned_to,
             ]);
         }
 
@@ -216,7 +229,8 @@ class AiService
             ."- handoff: boolean, true if a human agent should take over.\n"
             ."- handoff_reason: string or null.\n"
             ."- lead_stage: one of new, qualified, negotiating, won, lost.\n"
-            ."- lead_score: integer 0-100.\n";
+            ."- lead_score: integer 0-100.\n"
+            ."- sentiment: number 0-1 indicating customer sentiment (1=very positive, 0=very negative).\n";
         if ($isFirstMessage) {
             $instruction .= "This is the first message from this customer: greet them by name (if known) and start the conversation warmly.\n";
         }
@@ -241,6 +255,7 @@ class AiService
             'reply' => $parsed['reply'] ?? '',
             'tags' => array_values(array_filter((array) ($parsed['tags'] ?? []))),
             'confidence' => isset($parsed['confidence']) ? (float) $parsed['confidence'] : null,
+            'sentiment' => isset($parsed['sentiment']) ? (float) $parsed['sentiment'] : null,
             'handoff' => (bool) ($parsed['handoff'] ?? false),
             'handoff_reason' => $parsed['handoff_reason'] ?? null,
             'lead_stage' => $parsed['lead_stage'] ?? null,

@@ -13,7 +13,7 @@ class Message extends Model
     protected $fillable = [
         'conversation_id', 'kapso_message_id', 'direction', 'type', 'body',
         'media_url', 'status', 'raw_payload', 'sent_at',
-        'ai_tags', 'ai_confidence', 'ai_suggested_reply', 'ai_handoff_triggered',
+        'ai_tags', 'ai_confidence', 'ai_sentiment', 'ai_suggested_reply', 'ai_handoff_triggered', 'ai_feedback',
     ];
 
     protected $casts = [
@@ -21,6 +21,7 @@ class Message extends Model
         'sent_at' => 'datetime',
         'ai_tags' => 'array',
         'ai_handoff_triggered' => 'boolean',
+        'ai_feedback' => 'integer',
     ];
 
     public function conversation(): BelongsTo

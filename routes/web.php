@@ -23,6 +23,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
     Route::get('/', fn () => redirect()->route('dashboard'));
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/pipeline', [PipelineController::class, 'index'])->name('pipeline.index');
 
     Route::resource('contacts', ContactController::class);
     Route::resource('conversations', ConversationController::class);
@@ -60,6 +61,7 @@ Route::middleware('auth')->group(function () {
     Route::post('conversations/{conversation}/resume-ai', [AiController::class, 'resumeAi'])->name('conversations.resumeAi');
     Route::post('conversations/{conversation}/analyze', [AiController::class, 'analyzeNow'])->name('conversations.analyze');
     Route::post('messages/{message}/send-suggestion', [AiController::class, 'sendSuggestion'])->name('messages.sendSuggestion');
+    Route::post('messages/{message}/feedback', [AiController::class, 'feedback'])->name('messages.feedback');
 
     Route::get('/media/download', [MediaController::class, 'download'])->name('media.download');
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
