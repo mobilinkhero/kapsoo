@@ -8,6 +8,7 @@ use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\IntegrationController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\AuthController;
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -33,4 +34,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
 
     Route::get('/integration', [IntegrationController::class, 'index'])->name('integration.index');
+
+    Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+    Route::get('/logs/data', [LogController::class, 'data'])->name('logs.data');
+    Route::post('/logs/clear', [LogController::class, 'clear'])->name('logs.clear');
 });
