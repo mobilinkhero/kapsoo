@@ -123,8 +123,11 @@ class KapsoWebhookController extends Controller
             if (! empty($typeData['caption'])) {
                 $body = $typeData['caption'];
             } else {
-                // Never store a raw media URL as the message body/caption
-                if (is_string($body) && (filter_var($body, FILTER_VALIDATE_URL) || $body === $mediaUrl)) {
+                // Drop auto-generated attachment descriptions and raw URLs;
+                // only a real caption should render as text
+                if (is_string($body) && str_contains($body, 'http')) {
+                    $body = null;
+                } elseif (is_string($body) && preg_match('/^(image|video|audio|document|sticker|voice)\s+attached\b/i', $body)) {
                     $body = null;
                 } elseif (empty($body)) {
                     $body = null;
@@ -177,7 +180,7 @@ class KapsoWebhookController extends Controller
         $type = $msg['type'] ?? 'text';
 
         if (in_array($type, ['image', 'video', 'document', 'audio', 'sticker'])) {
-            if (is_string($body) && (filter_var($body, FILTER_VALIDATE_URL) || $body === $mediaUrl)) {
+            if (is_string($body) && (filter_var($body, FILTER_VALIDATE_URL) || str_contains($body, 'http'))) {
                 $body = null;
             }
         }
