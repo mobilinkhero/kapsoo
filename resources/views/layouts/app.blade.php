@@ -56,7 +56,7 @@
             <button @click="sidebarOpen = false" class="ml-auto lg:hidden p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            <button @click="sidebarCollapsed = true; localStorage.setItem('appSidebarCollapsed', '1'); var b=document.getElementById('sidebarExpandBtn'); if(b) b.style.display='flex';" class="hidden lg:block ml-auto p-1.5 rounded-lg hover:bg-slate-800 text-slate-400" title="Collapse sidebar">
+            <button @click="sidebarCollapsed = true; localStorage.setItem('appSidebarCollapsed', '1')" class="hidden lg:block ml-auto p-1.5 rounded-lg hover:bg-slate-800 text-slate-400" title="Collapse sidebar">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
             </button>
         </div>
@@ -113,30 +113,9 @@
     </aside>
 
     <!-- Sidebar expand button (shown when collapsed) -->
-    <button id="sidebarExpandBtn" type="button" onclick="expandSidebar()" class="fixed top-3 left-3 z-[60] items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-white shadow-md hover:bg-slate-700 transition" title="Show sidebar" style="display: none;">
+    <button x-cloak x-show="sidebarCollapsed" @click="sidebarCollapsed = false; localStorage.setItem('appSidebarCollapsed', '0')" class="fixed top-3 left-3 z-[60] flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-white shadow-md hover:bg-slate-700 transition" title="Show sidebar">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
     </button>
-    <script>
-        function expandSidebar() {
-            try { localStorage.setItem('appSidebarCollapsed', '0'); } catch (e) {}
-            var el = document.querySelector('[x-data]');
-            if (el && el.__x) { el.__x.$data.sidebarCollapsed = false; }
-            var btn = document.getElementById('sidebarExpandBtn');
-            if (btn) btn.style.display = 'none';
-            var aside = document.querySelector('aside');
-            if (aside) { aside.classList.remove('lg:-translate-x-full'); aside.classList.add('lg:translate-x-0'); }
-            var main = document.querySelector('main');
-            if (main) { main.classList.remove('lg:pl-0'); main.classList.add('lg:pl-72'); }
-        }
-        (function () {
-            try {
-                if (localStorage.getItem('appSidebarCollapsed') === '1') {
-                    var btn = document.getElementById('sidebarExpandBtn');
-                    if (btn) btn.style.display = 'flex';
-                }
-            } catch (e) {}
-        })();
-    </script>
 
     <!-- Main -->
     <main :class="sidebarCollapsed ? 'lg:pl-0' : 'lg:pl-72'" class="min-h-screen transition-all duration-300">
