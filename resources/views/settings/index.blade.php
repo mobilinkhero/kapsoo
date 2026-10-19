@@ -40,8 +40,8 @@
             </button>
         </div>
         <div x-show="result" x-transition class="rounded-xl px-4 py-3 text-sm" :class="result?.ok ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'">
-            <p class="font-semibold" x-text="result?.ok ? 'Connection successful' : 'Connection failed'"></p>
-            <pre class="mt-2 text-xs overflow-x-auto whitespace-pre-wrap" x-text="JSON.stringify(result?.body, null, 2)"></pre>
+            <p class="font-semibold" x-text="result?.ok ? 'Connection successful (HTTP ' + result?.status + ')' : 'Connection failed (HTTP ' + (result?.status || '?') + ')'"></p>
+            <pre class="mt-2 text-xs overflow-x-auto whitespace-pre-wrap bg-white/50 rounded-lg p-3" x-text="JSON.stringify(result, null, 2)"></pre>
         </div>
     </form>
 </div>
@@ -62,7 +62,12 @@ function settingsPage() {
                         'Accept': 'application/json'
                     }
                 });
-                this.result = await res.json();
+                const text = await res.text();
+                try {
+                    this.result = JSON.parse(text);
+                } catch (e) {
+                    this.result = { ok: false, status: res.status, body: { raw: text, parse_error: e.message } };
+                }
             } catch (e) {
                 this.result = { ok: false, body: { error: e.message } };
             }
