@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessAiForMessage;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
@@ -161,6 +162,12 @@ class KapsoWebhookController extends Controller
         $conversation->increment('unread_count');
         $conversation->last_message_at = now();
         $conversation->save();
+
+        // Trigger AI processing for inbound messages
+        $saved = Message::where('kapso_message_id', $msg['id'] ?? null)->first();
+        if ($saved) {
+            ProcessAiForMessage::dispatch($saved->id);
+        }
     }
 
     protected function handleMessageSent(array $data): void

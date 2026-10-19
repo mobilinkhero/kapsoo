@@ -246,6 +246,12 @@
                 <div class="p" id="waiHeadPhone">{{ $selected->contact->phone ?? '' }}</div>
             </div>
             <span class="wai-status {{ $selected->status ?? 'open' }}" id="waiHeadStatus">{{ $selected->status ?? 'open' }}</span>
+            <select id="waiAiMode" class="text-xs border border-slate-300 rounded-md px-2 py-1 bg-white" title="AI mode">
+                <option value="off">AI Off</option>
+                <option value="assist">AI Assist</option>
+                <option value="auto">AI Auto</option>
+            </select>
+            <span id="waiHandoffBadge" class="hidden text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700">Handoff</span>
             <div class="wai-head-actions">
                 <button type="button" title="Search in chat">
                     <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -260,6 +266,19 @@
             @if($selected)
                 @include('conversations.partials.messages', ['messages' => $selected->messages])
             @endif
+        </div>
+
+        <div id="waiAiPanel" class="px-3 py-2 bg-indigo-50 border-t border-indigo-100 text-xs space-y-2">
+            <div class="flex flex-wrap gap-1" id="waiTags"></div>
+            <div id="waiSuggestionWrap" class="hidden">
+                <div class="text-indigo-700 font-semibold mb-1">AI suggested reply:</div>
+                <div id="waiSuggestion" class="bg-white border border-indigo-200 rounded-lg px-3 py-2 text-slate-800 whitespace-pre-wrap"></div>
+                <div class="flex gap-2 mt-2">
+                    <button type="button" id="waiSendSuggestion" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">Send suggestion</button>
+                    <button type="button" id="waiDismissSuggestion" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition">Dismiss</button>
+                </div>
+            </div>
+            <div id="waiHandoffReason" class="hidden text-red-700"></div>
         </div>
 
         <div class="wai-composer">
@@ -399,6 +418,31 @@
                 box.setAttribute('data-last-date', '');
                 box.innerHTML = data.messages.length ? data.messages.map(m => renderMessage(m, box)).join('') : '<div class="wai-empty-list">No messages yet. Start the conversation.</div>';
                 document.getElementById('waiForm').action = base + '/' + data.id + '/messages';
+                const modeSel = document.getElementById('waiAiMode');
+                if (modeSel) modeSel.value = data.ai_mode || 'off';
+                const tagsEl = document.getElementById('waiTags');
+                if (tagsEl) {
+                    tagsEl.innerHTML = (data.ai_tags || []).map(t => '<span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">' + esc(t) + '</span>').join('');
+                }
+                const badge = document.getElementById('waiHandoffBadge');
+                if (badge) {
+                    if (data.ai_handoff) { badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); }
+                }
+                const reason = document.getElementById('waiHandoffReason');
+                if (reason) {
+                    if (data.handoff_reason) { reason.textContent = 'Handoff: ' + data.handoff_reason; reason.classList.remove('hidden'); } else { reason.classList.add('hidden'); }
+                }
+                const sugWrap = document.getElementById('waiSuggestionWrap');
+                const sug = document.getElementById('waiSuggestion');
+                if (sugWrap && sug) {
+                    if (data.ai_suggested_reply) {
+                        sug.textContent = data.ai_suggested_reply;
+                        sugWrap.classList.remove('hidden');
+                        sugWrap.dataset.messageId = data.ai_suggested_message_id || '';
+                    } else {
+                        sugWrap.classList.add('hidden');
+                    }
+                }
                 box.scrollTop = box.scrollHeight;
                 if (pushUrl) history.pushState({}, '', pushUrl);
                 initPoll(data.id);
@@ -496,6 +540,53 @@
     if (messages) {
         messages.scrollTop = messages.scrollHeight;
         initPoll(messages.getAttribute('data-conversation'));
+    }
+
+    // AI mode toggle
+    const modeSel = document.getElementById('waiAiMode');
+    if (modeSel) {
+        modeSel.addEventListener('change', async () => {
+            const convId = document.getElementById('waiMessages')?.getAttribute('data-conversation');
+            if (!convId) return;
+            await fetch(base + '/' + convId + '/ai-mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': (document.querySelector('#waiForm input[name=_token]')?.value || '') },
+                body: JSON.stringify({ mode: modeSel.value })
+            });
+        });
+    }
+    // CSRF meta not present; use form token instead via cookie? We'll read from hidden input is not available. Add fallback: Laravel session cookie auth already; but POST needs CSRF. Let's instead send CSRF from a global. We'll inject below.
+    const sendSugBtn = document.getElementById('waiSendSuggestion');
+    if (sendSugBtn) {
+        sendSugBtn.addEventListener('click', async () => {
+            const wrap = document.getElementById('waiSuggestionWrap');
+            const convId = document.getElementById('waiMessages')?.getAttribute('data-conversation');
+            // Need a message id with suggestion; use last inbound message id stored
+            let mid = wrap?.dataset?.messageId;
+            if (!mid) {
+                // find last message id from DOM
+                const ids = Array.from(document.querySelectorAll('[data-mid]')).map(e => parseInt(e.getAttribute('data-mid'),10)).filter(Boolean);
+                mid = ids.length ? ids[ids.length-1] : null;
+            }
+            if (!mid) return;
+            const res = await fetch('/messages/' + mid + '/send-suggestion', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': (document.querySelector('input[name=_token]')?.value || '') },
+            });
+            const data = await res.json();
+            if (data.ok && data.message) {
+                const box = document.getElementById('waiMessages');
+                box.insertAdjacentHTML('beforeend', renderMessage(data.message, box));
+                box.scrollTop = box.scrollHeight;
+                wrap.classList.add('hidden');
+            }
+        });
+    }
+    const dismissBtn = document.getElementById('waiDismissSuggestion');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', () => {
+            document.getElementById('waiSuggestionWrap')?.classList.add('hidden');
+        });
     }
 
     window.openPreview = function (src, type) {

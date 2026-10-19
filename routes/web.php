@@ -5,7 +5,9 @@ use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AiController;
 use App\Http\Controllers\IntegrationController;
+use App\Http\Controllers\KnowledgeDocumentController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SettingController;
@@ -38,6 +40,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/test', [SettingController::class, 'test'])->name('settings.test');
 
     Route::get('/integration', [IntegrationController::class, 'index'])->name('integration.index');
+
+    Route::resource('knowledge', KnowledgeDocumentController::class);
+
+    Route::post('conversations/{conversation}/ai-mode', [AiController::class, 'setMode'])->name('conversations.aiMode');
+    Route::post('conversations/{conversation}/handoff', [AiController::class, 'resumeHuman'])->name('conversations.handoff');
+    Route::post('conversations/{conversation}/resume-ai', [AiController::class, 'resumeAi'])->name('conversations.resumeAi');
+    Route::post('conversations/{conversation}/analyze', [AiController::class, 'analyzeNow'])->name('conversations.analyze');
+    Route::post('messages/{message}/send-suggestion', [AiController::class, 'sendSuggestion'])->name('messages.sendSuggestion');
 
     Route::get('/media/download', [MediaController::class, 'download'])->name('media.download');
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');

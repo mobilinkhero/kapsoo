@@ -193,6 +193,9 @@ class ConversationController extends Controller
         $conversation->load(['contact', 'messages' => fn ($query) => $query->orderBy('sent_at')->orderBy('id')]);
         $conversation->update(['unread_count' => 0]);
 
+        $lastInbound = $conversation->messages->where('direction', 'inbound')->last();
+        $suggestedMsg = $conversation->messages->where('direction', 'inbound')->filter(fn ($m) => ! empty($m->ai_suggested_reply))->last();
+
         return response()->json([
             'id' => $conversation->id,
             'contact' => [
@@ -201,6 +204,14 @@ class ConversationController extends Controller
                 'initial' => strtoupper(substr($conversation->contact->name ?? $conversation->contact->phone, 0, 1)),
             ],
             'status' => $conversation->status,
+            'ai_mode' => $conversation->ai_mode,
+            'ai_handoff' => $conversation->ai_handoff,
+            'handoff_reason' => $conversation->handoff_reason,
+            'ai_tags' => $conversation->ai_tags ?? [],
+            'lead_stage' => $conversation->lead_stage,
+            'lead_score' => $conversation->lead_score,
+            'ai_suggested_reply' => $lastInbound?->ai_suggested_reply,
+            'ai_suggested_message_id' => $suggestedMsg?->id,
             'messages' => $conversation->messages->map(fn ($m) => $this->messagePayload($m)),
         ]);
     }
@@ -215,6 +226,8 @@ class ConversationController extends Controller
             'body' => $message->body,
             'media_url' => $message->media_url,
             'status' => $message->status,
+            'ai_tags' => $message->ai_tags ?? [],
+            'ai_confidence' => $message->ai_confidence,
             'time' => $message->sent_at?->format('H:i'),
             'date_label' => $message->sent_at
                 ? ($message->sent_at->isToday() ? 'Today' : ($message->sent_at->isYesterday() ? 'Yesterday' : $message->sent_at->format('d M Y')))

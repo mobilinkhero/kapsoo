@@ -33,6 +33,42 @@
             <p class="text-xs text-slate-500">Webhook URL to configure in Kapso:</p>
             <code class="text-xs text-emerald-700 font-mono break-all">{{ url('/api/webhooks/kapso') }}</code>
         </div>
+        <div class="flex items-center gap-3 pt-4 border-t border-slate-100">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            </div>
+            <div>
+                <h3 class="font-semibold text-slate-900">AI Assistant (OpenAI)</h3>
+                <p class="text-xs text-slate-500">Sales & support copilot with knowledge base</p>
+            </div>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="ai_enabled" value="1" {{ ($settings['ai_enabled'] ?? '0') === '1' ? 'checked' : '' }} class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+            Enable AI processing
+        </label>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">OpenAI API Key</label>
+            <input name="openai_api_key" value="{{ old('openai_api_key', $settings['openai_api_key'] ?? '') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="sk-...">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Chat Model</label>
+                <input name="openai_model" value="{{ old('openai_model', $settings['openai_model'] ?? 'gpt-4o-mini') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Embedding Model</label>
+                <input name="openai_embedding_model" value="{{ old('openai_embedding_model', $settings['openai_embedding_model'] ?? 'text-embedding-3-small') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Handoff confidence threshold (0-1)</label>
+            <input name="ai_handoff_confidence" type="number" step="0.05" min="0" max="1" value="{{ old('ai_handoff_confidence', $settings['ai_handoff_confidence'] ?? '0.5') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">System prompt (sales persona)</label>
+            <textarea name="ai_system_prompt" rows="5" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">{{ old('ai_system_prompt', $settings['ai_system_prompt'] ?? '') }}</textarea>
+        </div>
+
         <div class="flex flex-wrap gap-3">
             <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:from-emerald-700 hover:to-teal-700 transition shadow-lg shadow-emerald-500/25">Save Settings</button>
             <button type="submit" name="test_mode" value="1" class="px-6 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition shadow-sm">Test Connection</button>

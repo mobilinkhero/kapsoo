@@ -11,10 +11,12 @@ class Conversation extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['contact_id', 'phone_number_id', 'status', 'unread_count', 'last_message_at'];
+    protected $fillable = ['contact_id', 'phone_number_id', 'status', 'unread_count', 'last_message_at', 'ai_mode', 'ai_handoff', 'handoff_reason', 'ai_tags', 'lead_score', 'lead_stage'];
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'ai_handoff' => 'boolean',
+        'ai_tags' => 'array',
     ];
 
     public function contact(): BelongsTo
