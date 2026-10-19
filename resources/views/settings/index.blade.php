@@ -7,16 +7,7 @@
         <p class="text-sm text-slate-500 mt-1">Configure your Kapso integration and AI assistant</p>
     </div>
 
-    @if(session('success'))
-        <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 text-sm">{{ session('success') }}</div>
-    @endif
-    @if(session('test_result'))
-        @php $tr = session('test_result'); @endphp
-        <div class="rounded-xl px-4 py-3 text-sm {{ ($tr['ok'] ?? false) ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700' }}">
-            <p class="font-semibold">{{ ($tr['ok'] ?? false) ? 'Connection successful (HTTP ' . ($tr['status'] ?? '?') . ')' : 'Connection failed (HTTP ' . ($tr['status'] ?? '?') . ')' }}</p>
-            <pre class="mt-2 text-xs overflow-x-auto whitespace-pre-wrap bg-white/50 rounded-lg p-3">{{ json_encode($tr, JSON_PRETTY_PRINT) }}</pre>
-        </div>
-    @endif
+    {{-- status messages are rendered under each card's buttons --}}
 
     {{-- Kapso card --}}
     <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
@@ -52,6 +43,16 @@
                 <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:from-emerald-700 hover:to-teal-700 transition shadow-lg shadow-emerald-500/25">Save Kapso</button>
                 <button type="submit" name="test_mode" value="1" class="px-6 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition shadow-sm">Test Connection</button>
             </div>
+            @if(session('saved_section') === 'kapso' && session('success'))
+                <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 text-sm">{{ session('success') }}</div>
+            @endif
+            @if(session('test_section') === 'kapso' && session('test_result'))
+                @php $tr = session('test_result'); @endphp
+                <div class="rounded-xl px-4 py-3 text-sm {{ ($tr['ok'] ?? false) ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700' }}">
+                    <p class="font-semibold">{{ ($tr['ok'] ?? false) ? 'Connection successful (HTTP ' . ($tr['status'] ?? '?') . ')' : 'Connection failed (HTTP ' . ($tr['status'] ?? '?') . ')' }}</p>
+                    <pre class="mt-2 text-xs overflow-x-auto whitespace-pre-wrap bg-white/50 rounded-lg p-3">{{ json_encode($tr, JSON_PRETTY_PRINT) }}</pre>
+                </div>
+            @endif
         </form>
     </div>
 
@@ -99,6 +100,16 @@
                 <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-500/25">Save AI</button>
                 <button type="submit" name="test_mode" value="1" class="px-6 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition shadow-sm">Test Connection</button>
             </div>
+            @if(session('saved_section') === 'ai' && session('success'))
+                <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 text-sm">{{ session('success') }}</div>
+            @endif
+            @if(session('test_section') === 'ai' && session('test_result'))
+                @php $tr = session('test_result'); @endphp
+                <div class="rounded-xl px-4 py-3 text-sm {{ ($tr['ok'] ?? false) ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700' }}">
+                    <p class="font-semibold">{{ ($tr['ok'] ?? false) ? 'Connection successful (HTTP ' . ($tr['status'] ?? '?') . ')' : 'Connection failed (HTTP ' . ($tr['status'] ?? '?') . ')' }}</p>
+                    <pre class="mt-2 text-xs overflow-x-auto whitespace-pre-wrap bg-white/50 rounded-lg p-3">{{ json_encode($tr, JSON_PRETTY_PRINT) }}</pre>
+                </div>
+            @endif
         </form>
     </div>
 </div>
