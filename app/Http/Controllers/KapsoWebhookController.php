@@ -60,17 +60,62 @@ class KapsoWebhookController extends Controller
         }
     }
 
-    protected function upsertContact(array $conversation): Contact
+    protected function upsertContact(array $data): Contact
     {
-        $phone = isset($conversation['phone_number']) ? trim((string) $conversation['phone_number']) : null;
-        $name = $conversation['contact_name'] ?? null;
+        $conv = $data['conversation'] ?? $data;
+        $msg = $data['message'] ?? [];
+
+        // Phone: try several locations Kapso/WhatsApp may use
+        $phone = null;
+        foreach (['phone_number', 'phone', 'wa_id', 'from'] as $k) {
+            if (! empty($conv[$k])) {
+                $phone = trim((string) $conv[$k]);
+                break;
+            }
+        }
+        if (! $phone && ! empty($msg['from'])) {
+            $phone = trim((string) $msg['from']);
+        }
+        if (! $phone && ! empty($data['phone_number'])) {
+            $phone = trim((string) $data['phone_number']);
+        }
+
+        // Name: Kapso/WhatsApp may send it in several places
+        $name = null;
+        foreach (['contact_name', 'name', 'profile_name'] as $k) {
+            if (! empty($conv[$k])) {
+                $name = trim((string) $conv[$k]);
+                break;
+            }
+        }
+        if (! $name) {
+            // WhatsApp Cloud API style: contacts[0].profile.name
+            $contacts = $data['contacts'] ?? ($conv['contacts'] ?? []);
+            if (is_array($contacts) && ! empty($contacts[0])) {
+                $c0 = $contacts[0];
+                $name = $c0['profile']['name'] ?? ($c0['name'] ?? null);
+                if ($name) {
+                    $name = trim((string) $name);
+                }
+            }
+        }
+        if (! $name && ! empty($msg['contact']['profile']['name'])) {
+            $name = trim((string) $msg['contact']['profile']['name']);
+        }
+        if (! $name && ! empty($msg['profile']['name'])) {
+            $name = trim((string) $msg['profile']['name']);
+        }
 
         $contact = $phone ? Contact::firstOrNew(['phone' => $phone]) : new Contact;
+        // Only overwrite name when Kapso actually sends one (keep existing otherwise)
         if ($name) {
             $contact->name = $name;
         }
-        if (isset($conversation['business_scoped_user_id'])) {
-            $contact->kapso_contact_id = $conversation['business_scoped_user_id'];
+        if (isset($conv['business_scoped_user_id'])) {
+            $contact->kapso_contact_id = $conv['business_scoped_user_id'];
+        }
+        if (isset($data['business_scoped_user_id'])) {
+            $contact->kapso_contact_id = $data['business_scoped_user_id'];
         }
         $contact->last_seen_at = now();
         $contact->save();
@@ -109,7 +154,7 @@ class KapsoWebhookController extends Controller
     protected function handleMessageReceived(array $data): void
     {
         $convData = $data['conversation'] ?? [];
-        $contact = $this->upsertContact($convData);
+        $contact = $this->upsertContact($data);
         $conversation = $this->upsertConversation($data, $contact);
 
         $msg = $data['message'] ?? [];
@@ -183,7 +228,7 @@ class KapsoWebhookController extends Controller
     protected function handleMessageSent(array $data): void
     {
         $convData = $data['conversation'] ?? [];
-        $contact = $this->upsertContact($convData);
+        $contact = $this->upsertContact($data);
         $conversation = $this->upsertConversation($data, $contact);
 
         $msg = $data['message'] ?? [];
@@ -238,14 +283,14 @@ class KapsoWebhookController extends Controller
     protected function handleConversationCreated(array $data): void
     {
         $convData = $data['conversation'] ?? [];
-        $contact = $this->upsertContact($convData);
+        $contact = $this->upsertContact($data);
         $this->upsertConversation($data, $contact);
     }
 
     protected function handleConversationEnded(array $data): void
     {
         $convData = $data['conversation'] ?? [];
-        $contact = $this->upsertContact($convData);
+        $contact = $this->upsertContact($data);
         $conversation = $this->upsertConversation($data, $contact);
         $conversation->status = 'ended';
         $conversation->save();

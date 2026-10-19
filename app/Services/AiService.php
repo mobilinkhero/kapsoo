@@ -202,6 +202,7 @@ class AiService
         }
         $messages[] = ['role' => 'user', 'content' => $message->body ?? '[non-text message]'];
 
+        $isFirstMessage = $chatHistory === [];
         $instruction = "Respond ONLY with a valid JSON object (no markdown) with keys:\n"
             ."- reply: string, the suggested reply to send to the customer (concise, helpful, sales-oriented). Empty string if no reply needed.\n"
             ."- tags: array of short intent/sentiment tags (e.g. interested, pricing, complaint, hot_lead, support, greeting).\n"
@@ -210,6 +211,9 @@ class AiService
             ."- handoff_reason: string or null.\n"
             ."- lead_stage: one of new, qualified, negotiating, won, lost.\n"
             ."- lead_score: integer 0-100.\n";
+        if ($isFirstMessage) {
+            $instruction .= "This is the first message from this customer: greet them by name (if known) and start the conversation warmly.\n";
+        }
 
         $messages[] = ['role' => 'system', 'content' => $instruction];
 
