@@ -19,7 +19,7 @@ class SettingController extends Controller
         return response()->json($kapso->testConnection());
     }
 
-    public function update(Request $request)
+    public function update(Request $request, KapsoService $kapso)
     {
         $data = $request->validate([
             'kapso_base_url' => 'nullable|url',
@@ -29,6 +29,11 @@ class SettingController extends Controller
 
         foreach ($data as $key => $value) {
             Setting::updateOrCreate(['key' => $key], ['value' => $value]);
+        }
+
+        if ($request->has('test_mode')) {
+            $result = $kapso->testConnection();
+            return redirect()->route('settings.index')->with('test_result', $result);
         }
 
         return redirect()->route('settings.index')->with('success', 'Settings saved.');
