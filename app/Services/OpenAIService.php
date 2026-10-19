@@ -29,6 +29,29 @@ class OpenAIService
         return ! empty($this->apiKey);
     }
 
+    public function testConnection(): array
+    {
+        if (empty($this->apiKey)) {
+            return ['ok' => false, 'status' => 0, 'body' => ['error' => 'API key missing']];
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer '.$this->apiKey,
+            'Accept' => 'application/json',
+        ])->get($this->baseUrl.'/models');
+
+        $body = $response->json();
+        if (! is_array($body)) {
+            $body = ['raw' => $response->body()];
+        }
+
+        return [
+            'ok' => $response->successful(),
+            'status' => $response->status(),
+            'body' => $body,
+        ];
+    }
+
     protected function setting(string $key, $default = null)
     {
         try {
