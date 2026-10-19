@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -26,6 +27,7 @@ class KapsoWebhookController extends Controller
             foreach ($payload['data'] as $item) {
                 $this->processEvent($event, $item);
             }
+
             return response('OK', 200);
         }
 
@@ -62,7 +64,7 @@ class KapsoWebhookController extends Controller
         $phone = $conversation['phone_number'] ?? null;
         $name = $conversation['contact_name'] ?? null;
 
-        $contact = $phone ? Contact::firstOrNew(['phone' => $phone]) : new Contact();
+        $contact = $phone ? Contact::firstOrNew(['phone' => $phone]) : new Contact;
         if ($name) {
             $contact->name = $name;
         }
@@ -86,8 +88,8 @@ class KapsoWebhookController extends Controller
 
         // Simpler: find by contact_id
         $conversation = Conversation::where('contact_id', $contact->id)->latest()->first();
-        if (!$conversation) {
-            $conversation = new Conversation();
+        if (! $conversation) {
+            $conversation = new Conversation;
             $conversation->contact_id = $contact->id;
         }
 
@@ -109,14 +111,14 @@ class KapsoWebhookController extends Controller
         $kapso = $msg['kapso'] ?? [];
 
         $body = $kapso['content'] ?? null;
-        if (!$body && isset($msg['text']['body'])) {
+        if (! $body && isset($msg['text']['body'])) {
             $body = $msg['text']['body'];
         }
 
         // Extract caption for media messages
         if (in_array($msg['type'] ?? '', ['image', 'video', 'document', 'audio', 'sticker'])) {
             $typeData = $kapso['message_type_data'] ?? [];
-            if (!empty($typeData['caption'])) {
+            if (! empty($typeData['caption'])) {
                 $body = $typeData['caption'];
             } elseif (empty($body)) {
                 $body = null;
@@ -126,8 +128,10 @@ class KapsoWebhookController extends Controller
         // Location messages
         if (($msg['type'] ?? '') === 'location') {
             $loc = $msg['location'] ?? [];
-            $body = trim(($loc['name'] ?? '') . ' ' . ($loc['address'] ?? ''));
-            if (empty($body)) $body = ($loc['latitude'] ?? '') . ', ' . ($loc['longitude'] ?? '');
+            $body = trim(($loc['name'] ?? '').' '.($loc['address'] ?? ''));
+            if (empty($body)) {
+                $body = ($loc['latitude'] ?? '').', '.($loc['longitude'] ?? '');
+            }
         }
 
         $mediaUrl = $kapso['media_url'] ?? null;
@@ -142,7 +146,7 @@ class KapsoWebhookController extends Controller
                 'media_url' => $mediaUrl,
                 'status' => 'received',
                 'raw_payload' => $data,
-                'sent_at' => isset($msg['timestamp']) ? \Carbon\Carbon::createFromTimestamp((int) $msg['timestamp']) : now(),
+                'sent_at' => isset($msg['timestamp']) ? Carbon::createFromTimestamp((int) $msg['timestamp']) : now(),
             ]
         );
 
@@ -161,7 +165,7 @@ class KapsoWebhookController extends Controller
         $kapso = $msg['kapso'] ?? [];
 
         $body = $kapso['content'] ?? null;
-        if (!$body && isset($msg['text']['body'])) {
+        if (! $body && isset($msg['text']['body'])) {
             $body = $msg['text']['body'];
         }
 
@@ -174,7 +178,7 @@ class KapsoWebhookController extends Controller
                 'body' => $body,
                 'status' => $kapso['status'] ?? 'sent',
                 'raw_payload' => $data,
-                'sent_at' => isset($msg['timestamp']) ? \Carbon\Carbon::createFromTimestamp((int) $msg['timestamp']) : now(),
+                'sent_at' => isset($msg['timestamp']) ? Carbon::createFromTimestamp((int) $msg['timestamp']) : now(),
             ]
         );
     }
@@ -182,7 +186,7 @@ class KapsoWebhookController extends Controller
     protected function handleMessageStatus(array $data, string $status): void
     {
         $msg = $data['message'] ?? [];
-        if (!empty($msg['id'])) {
+        if (! empty($msg['id'])) {
             Message::where('kapso_message_id', $msg['id'])->update(['status' => $status]);
         }
     }
@@ -190,7 +194,7 @@ class KapsoWebhookController extends Controller
     protected function handleMessageFailed(array $data): void
     {
         $msg = $data['message'] ?? [];
-        if (!empty($msg['id'])) {
+        if (! empty($msg['id'])) {
             Message::where('kapso_message_id', $msg['id'])->update(['status' => 'failed']);
         }
     }

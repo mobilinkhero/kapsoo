@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Log;
 class KapsoService
 {
     protected string $baseUrl;
+
     protected ?string $apiKey;
+
     protected ?string $phoneNumberId;
 
     public function __construct()
@@ -22,7 +24,7 @@ class KapsoService
             $raw = 'https://api.kapso.ai/meta/whatsapp/v24.0';
         } elseif (str_ends_with($raw, '/meta/whatsapp')) {
             $raw .= '/v24.0';
-        } elseif (!preg_match('#/v\d+\.\d+$#', $raw) && str_contains($raw, 'api.kapso.ai')) {
+        } elseif (! preg_match('#/v\d+\.\d+$#', $raw) && str_contains($raw, 'api.kapso.ai')) {
             // append version if missing
             $raw .= '/v24.0';
         }
@@ -34,13 +36,14 @@ class KapsoService
 
     public function isConfigured(): bool
     {
-        return !empty($this->apiKey) && !empty($this->phoneNumberId);
+        return ! empty($this->apiKey) && ! empty($this->phoneNumberId);
     }
 
     protected function setting(string $key, $default = null)
     {
         try {
             $value = Setting::where('key', $key)->value('value');
+
             return $value !== null ? $value : $default;
         } catch (\Throwable $e) {
             return $default;
@@ -115,6 +118,7 @@ class KapsoService
 
         if ($response->failed()) {
             Log::error('Kapso listTemplates failed', ['status' => $response->status(), 'body' => $response->body()]);
+
             return [];
         }
 
@@ -130,13 +134,13 @@ class KapsoService
         // Verify the API key against the platform API (lists connected numbers)
         $response = Http::withHeaders([
             'X-API-Key' => $this->apiKey,
-            'Authorization' => 'Bearer ' . $this->apiKey,
+            'Authorization' => 'Bearer '.$this->apiKey,
             'Accept' => 'application/json',
             'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         ])->get('https://api.kapso.ai/platform/v1/whatsapp/phone_numbers');
 
         $body = $response->json();
-        if (!is_array($body)) {
+        if (! is_array($body)) {
             $body = ['raw' => $response->body()];
         }
 

@@ -36,6 +36,7 @@ class ContactController extends Controller
     public function show(Contact $contact)
     {
         $contact->load('conversations');
+
         return view('contacts.show', compact('contact'));
     }
 
@@ -48,7 +49,7 @@ class ContactController extends Controller
     {
         $data = $request->validate([
             'name' => 'nullable|string|max:255',
-            'phone' => 'required|string|max:50|unique:contacts,phone,' . $contact->id,
+            'phone' => 'required|string|max:50|unique:contacts,phone,'.$contact->id,
         ]);
 
         $contact->update($data);
@@ -59,6 +60,7 @@ class ContactController extends Controller
     public function destroy(Contact $contact)
     {
         $contact->delete();
+
         return redirect()->route('contacts.index')->with('success', 'Contact deleted.');
     }
 }

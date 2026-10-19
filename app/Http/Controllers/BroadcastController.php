@@ -14,6 +14,7 @@ class BroadcastController extends Controller
     public function index()
     {
         $broadcasts = Broadcast::with('template')->orderByDesc('created_at')->paginate(20);
+
         return view('broadcasts.index', compact('broadcasts'));
     }
 
@@ -21,6 +22,7 @@ class BroadcastController extends Controller
     {
         $templates = Template::all();
         $contacts = Contact::all();
+
         return view('broadcasts.create', compact('templates', 'contacts'));
     }
 
@@ -53,13 +55,14 @@ class BroadcastController extends Controller
     public function show(Broadcast $broadcast)
     {
         $broadcast->load('template', 'recipients.contact');
+
         return view('broadcasts.show', compact('broadcast'));
     }
 
     public function send(Broadcast $broadcast, KapsoService $kapso)
     {
         $template = $broadcast->template;
-        if (!$template) {
+        if (! $template) {
             return redirect()->back()->with('error', 'No template selected.');
         }
 

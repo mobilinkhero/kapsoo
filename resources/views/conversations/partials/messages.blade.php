@@ -15,36 +15,36 @@
             @if($m->type === 'image' && $m->media_url)
                 <div class="wai-media-wrap">
                     <img class="media" src="{{ $m->media_url }}" alt="" onclick="openPreview('{{ $m->media_url }}','image')" style="cursor:zoom-in;">
-                    <a class="wai-dl" href="{{ route('media.download', ['url' => $m->media_url]) }}" download title="Download">⬇</a>
+                    <a class="wai-dl" href="/media/download?url={{ urlencode($m->media_url) }}" download title="Download">⬇</a>
                 </div>
             @endif
             @if($m->type === 'video' && $m->media_url)
                 <div class="wai-media-wrap">
                     <video src="{{ $m->media_url }}" controls onclick="openPreview('{{ $m->media_url }}','video')" style="cursor:zoom-in;"></video>
-                    <a class="wai-dl" href="{{ route('media.download', ['url' => $m->media_url]) }}" download title="Download">⬇</a>
+                    <a class="wai-dl" href="/media/download?url={{ urlencode($m->media_url) }}" download title="Download">⬇</a>
                 </div>
             @endif
             @if($m->type === 'audio' && $m->media_url)
                 <div class="wai-voice">
                     <span class="wai-voice-ic">🎤</span>
                     <audio src="{{ $m->media_url }}" controls></audio>
-                    <a class="wai-dl-inline" href="{{ route('media.download', ['url' => $m->media_url]) }}" download title="Download">⬇</a>
+                    <a class="wai-dl-inline" href="/media/download?url={{ urlencode($m->media_url) }}" download title="Download">⬇</a>
                 </div>
             @endif
             @if($m->type === 'sticker' && $m->media_url)
                 <div class="wai-media-wrap">
                     <img class="wai-sticker" src="{{ $m->media_url }}" alt="" onclick="openPreview('{{ $m->media_url }}','image')" style="cursor:zoom-in;">
-                    <a class="wai-dl" href="{{ route('media.download', ['url' => $m->media_url]) }}" download title="Download">⬇</a>
+                    <a class="wai-dl" href="/media/download?url={{ urlencode($m->media_url) }}" download title="Download">⬇</a>
                 </div>
             @endif
             @if($m->type === 'document' && $m->media_url)
                 @if(str_ends_with(strtolower($m->media_url), '.pdf'))
                     <div class="wai-media-wrap">
                         <iframe src="{{ $m->media_url }}" class="wai-pdf" loading="lazy"></iframe>
-                        <a class="wai-dl" href="{{ route('media.download', ['url' => $m->media_url]) }}" download title="Download">⬇</a>
+                        <a class="wai-dl" href="/media/download?url={{ urlencode($m->media_url) }}" download title="Download">⬇</a>
                     </div>
                 @else
-                    <a class="wai-file" href="{{ route('media.download', ['url' => $m->media_url]) }}" download>📄 Download file</a>
+                    <a class="wai-file" href="/media/download?url={{ urlencode($m->media_url) }}" download>📄 Download file</a>
                 @endif
             @endif
             @if($m->type === 'location')

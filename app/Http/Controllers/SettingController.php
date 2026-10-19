@@ -11,6 +11,7 @@ class SettingController extends Controller
     public function index()
     {
         $settings = Setting::pluck('value', 'key')->toArray();
+
         return view('settings.index', compact('settings'));
     }
 
@@ -33,6 +34,7 @@ class SettingController extends Controller
 
         if ($request->has('test_mode')) {
             $result = $kapso->testConnection();
+
             return redirect()->route('settings.index')->with('test_result', $result);
         }
 

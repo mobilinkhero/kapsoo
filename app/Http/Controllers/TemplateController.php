@@ -11,6 +11,7 @@ class TemplateController extends Controller
     public function index()
     {
         $templates = Template::orderByDesc('created_at')->paginate(20);
+
         return view('templates.index', compact('templates'));
     }
 
