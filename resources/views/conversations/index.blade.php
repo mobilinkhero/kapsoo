@@ -1,231 +1,138 @@
 @extends('layouts.app')
 @section('title', 'Inbox')
 @section('content')
-@php
-    $convList = $conversations->map(fn ($c) => [
-        'id' => $c->id,
-        'name' => $c->contact->name ?? $c->contact->phone,
-        'phone' => $c->contact->phone,
-        'initial' => strtoupper(substr($c->contact->name ?? $c->contact->phone, 0, 1)),
-        'last_message' => $c->latestMessage->body ?? 'No messages',
-        'unread' => $c->unread_count,
-        'time' => $c->last_message_at?->diffForHumans(null, true),
-    ]);
-    $selectedData = null;
-    if ($selected) {
-        $selectedData = [
-            'id' => $selected->id,
-            'name' => $selected->contact->name ?? $selected->contact->phone,
-            'phone' => $selected->contact->phone,
-            'initial' => strtoupper(substr($selected->contact->name ?? $selected->contact->phone, 0, 1)),
-            'status' => $selected->status,
-            'messages' => $selected->messages->map(fn ($m) => [
-                'id' => $m->id,
-                'direction' => $m->direction,
-                'type' => $m->type,
-                'body' => $m->body,
-                'media_url' => $m->media_url,
-                'status' => $m->status,
-                'time' => $m->sent_at?->format('H:i'),
-            ]),
-        ];
-    }
-@endphp
-<div class="flex h-[calc(100vh-8rem)] gap-3" x-data="inboxApp({{ $convList->toJson() }}, {{ json_encode($selectedData) }})" x-init="init()">
-    <!-- Conversation list -->
-    <div class="w-full lg:w-80 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col" :class="selected ? 'hidden lg:flex' : 'flex'">
-        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h3 class="font-semibold text-slate-900">Chats</h3>
-            <span class="text-xs text-slate-400" x-text="conversations.length + ' conversations'"></span>
+<div class="flex h-[calc(100vh-8rem)] bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <!-- Sidebar: conversation list -->
+    <div class="w-full lg:w-[320px] xl:w-[360px] flex flex-col border-r border-slate-200 bg-white">
+        <div class="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-slate-900">Chats</h2>
+            <span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ $conversations->total() }}</span>
         </div>
-        <div class="flex-1 overflow-y-auto scrollbar-thin">
-            <template x-for="c in conversations" :key="c.id">
-                <button @click="select(c.id)" class="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition text-left" :class="selected && selected.id === c.id ? 'bg-emerald-50' : ''">
-                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-semibold shrink-0" x-text="c.initial"></div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center justify-between">
-                            <p class="font-medium text-slate-900 truncate text-sm" x-text="c.name"></p>
-                            <span class="text-[10px] text-slate-400" x-text="c.time"></span>
-                        </div>
-                        <p class="text-xs text-slate-500 truncate" x-text="c.last_message"></p>
+        <div class="flex-1 overflow-y-auto">
+            @forelse($conversations as $conv)
+                <a href="{{ route('conversations.index', ['c' => $conv->id]) }}"
+                   class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition border-b border-slate-50 {{ $selected && $selected->id === $conv->id ? 'bg-emerald-50/70 border-l-4 border-l-emerald-500' : '' }}">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm">
+                        {{ strtoupper(substr($conv->contact->name ?? $conv->contact->phone, 0, 1)) }}
                     </div>
-                    <template x-if="c.unread > 0">
-                        <span class="px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-500 text-white font-medium" x-text="c.unread"></span>
-                    </template>
-                </button>
-            </template>
-            <div x-show="conversations.length === 0" class="px-4 py-12 text-center text-slate-400 text-sm">No conversations yet</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between mb-0.5">
+                            <p class="font-semibold text-slate-900 truncate text-[15px]">{{ $conv->contact->name ?? $conv->contact->phone }}</p>
+                            <span class="text-[11px] text-slate-400 shrink-0 ml-2">{{ $conv->last_message_at?->format('H:i') }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm text-slate-500 truncate">{{ $conv->latestMessage->body ?? 'No messages yet' }}</p>
+                            @if($conv->unread_count > 0)
+                                <span class="ml-2 shrink-0 w-5 h-5 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center">{{ $conv->unread_count }}</span>
+                            @endif
+                        </div>
+                    </div>
+                </a>
+            @empty
+                <div class="flex flex-col items-center justify-center h-full text-slate-400 px-6">
+                    <svg class="w-16 h-16 mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                    <p class="font-medium">No conversations yet</p>
+                    <p class="text-xs mt-1">Messages will appear here</p>
+                </div>
+            @endforelse
+        </div>
+        <div class="px-4 py-2 border-t border-slate-100">
+            {{ $conversations->links() }}
         </div>
     </div>
 
-    <!-- Chat panel -->
-    <div class="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col" :class="selected ? 'flex' : 'hidden lg:flex'">
-        <template x-if="selected">
-            <div class="flex flex-col h-full">
-                <!-- Header -->
-                <div class="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-                    <button @click="selected = null" class="lg:hidden p-2 rounded-xl hover:bg-slate-100">
-                        <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                    </button>
-                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-semibold" x-text="selected.contact.initial"></div>
-                    <div class="flex-1 min-w-0">
-                        <p class="font-semibold text-slate-900 truncate" x-text="selected.contact.name"></p>
-                        <p class="text-xs text-slate-500 truncate" x-text="selected.contact.phone"></p>
-                    </div>
+    <!-- Chat area -->
+    <div class="flex-1 flex flex-col min-w-0 bg-[#efeae2]">
+        @if($selected)
+            <!-- Chat header -->
+            <div class="bg-white px-4 py-3 border-b border-slate-200 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-bold shadow-sm">
+                    {{ strtoupper(substr($selected->contact->name ?? $selected->contact->phone, 0, 1)) }}
                 </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-slate-900 truncate">{{ $selected->contact->name ?? $selected->contact->phone }}</p>
+                    <p class="text-xs text-slate-500">{{ $selected->contact->phone }}</p>
+                </div>
+                <span class="text-xs px-2 py-1 rounded-full {{ $selected->status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">{{ ucfirst($selected->status) }}</span>
+            </div>
 
-                <!-- Messages -->
-                <div class="flex-1 overflow-y-auto bg-slate-50 p-3 space-y-2 scrollbar-thin" x-ref="box">
-                    <template x-for="m in messages" :key="m.id">
-                        <div class="flex" :class="m.direction === 'outbound' ? 'justify-end' : 'justify-start'">
-                            <div class="max-w-[70%] px-3 py-2 rounded-2xl text-sm shadow-sm" :class="m.direction === 'outbound' ? 'bg-emerald-500 text-white rounded-br-md' : 'bg-white text-slate-800 rounded-bl-md border border-slate-200'">
-                                <template x-if="m.type === 'image' && m.media_url">
-                                    <img :src="m.media_url" class="rounded-lg max-w-full mb-1" alt="">
-                                </template>
-                                <template x-if="m.type === 'video' && m.media_url">
-                                    <video :src="m.media_url" controls class="rounded-lg max-w-full mb-1"></video>
-                                </template>
-                                <template x-if="m.type === 'audio' && m.media_url">
-                                    <audio :src="m.media_url" controls class="w-full mb-1"></audio>
-                                </template>
-                                <template x-if="m.type === 'document' && m.media_url">
-                                    <a :href="m.media_url" target="_blank" class="flex items-center gap-1 underline text-xs mb-1">📄 Download</a>
-                                </template>
-                                <template x-if="m.type === 'location'">
-                                    <a :href="'https://maps.google.com/?q=' + encodeURIComponent(m.body || '')" target="_blank" class="flex items-center gap-1 underline text-xs mb-1">📍 View on map</a>
-                                </template>
-                                <template x-if="m.type === 'sticker' && m.media_url">
-                                    <img :src="m.media_url" class="w-20 h-20 mb-1" alt="">
-                                </template>
-                                <p x-show="m.body" class="whitespace-pre-wrap break-words" x-text="m.body"></p>
-                                <div class="flex items-center gap-1 mt-1" :class="m.direction === 'outbound' ? 'justify-end' : 'justify-start'">
-                                    <span class="text-[9px] opacity-70" x-text="m.time"></span>
-                                </div>
+            <!-- Messages -->
+            <div class="flex-1 overflow-y-auto px-4 py-3 space-y-1" style="background-image: url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23d4d4d4\' fill-opacity=\'0.15\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');">
+                @foreach($selected->messages as $m)
+                    <div class="flex {{ $m->direction === 'outbound' ? 'justify-end' : 'justify-start' }} mb-1">
+                        <div class="max-w-[65%] px-3 py-1.5 rounded-lg shadow-sm text-sm {{ $m->direction === 'outbound' ? 'bg-[#d9fdd3] text-slate-900 rounded-tr-none' : 'bg-white text-slate-900 rounded-tl-none' }}">
+                            @if($m->type === 'image' && $m->media_url)
+                                <img src="{{ $m->media_url }}" class="rounded-md max-w-full mb-1" alt="">
+                            @endif
+                            @if($m->type === 'video' && $m->media_url)
+                                <video src="{{ $m->media_url }}" controls class="rounded-md max-w-full mb-1"></video>
+                            @endif
+                            @if($m->type === 'audio' && $m->media_url)
+                                <audio src="{{ $m->media_url }}" controls class="w-full mb-1"></audio>
+                            @endif
+                            @if($m->type === 'document' && $m->media_url)
+                                <a href="{{ $m->media_url }}" target="_blank" class="flex items-center gap-1 text-emerald-700 underline text-xs mb-1">📄 Download file</a>
+                            @endif
+                            @if($m->type === 'location')
+                                <a href="https://maps.google.com/?q={{ urlencode($m->body ?? '') }}" target="_blank" class="flex items-center gap-1 text-emerald-700 underline text-xs mb-1">📍 View on map</a>
+                            @endif
+                            @if($m->type === 'sticker' && $m->media_url)
+                                <img src="{{ $m->media_url }}" class="w-24 h-24 mb-1" alt="">
+                            @endif
+                            @if($m->body)
+                                <p class="whitespace-pre-wrap break-words leading-relaxed">{{ $m->body }}</p>
+                            @endif
+                            <div class="flex items-center justify-end gap-1 mt-0.5">
+                                <span class="text-[10px] text-slate-500">{{ $m->sent_at?->format('H:i') }}</span>
+                                @if($m->direction === 'outbound')
+                                    <span class="text-[10px] text-slate-500">{{ $m->status === 'read' ? '✓✓' : ($m->status === 'delivered' ? '✓✓' : '✓') }}</span>
+                                @endif
                             </div>
                         </div>
-                    </template>
-                    <div x-show="messages.length === 0" class="h-full flex items-center justify-center text-slate-400 text-sm">
-                        No messages yet. Start the conversation.
                     </div>
-                </div>
-
-                <!-- Composer -->
-                <div class="border-t border-slate-100 p-3" x-data="{ msgType: 'text' }">
-                    <form @submit.prevent="send($event)" enctype="multipart/form-data" class="space-y-2">
-                        <input type="hidden" name="type" :value="msgType">
-                        <div class="flex gap-1 flex-wrap">
-                            <template x-for="t in ['text','image','video','audio','document','location','sticker']" :key="t">
-                                <button type="button" @click="msgType = t" class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition" :class="msgType === t ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" x-text="t.charAt(0).toUpperCase() + t.slice(1)"></button>
-                            </template>
-                        </div>
-
-                        <div x-show="msgType === 'text'">
-                            <textarea name="body" rows="1" placeholder="Type a message..." class="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 outline-none resize-none text-sm focus:ring-2 focus:ring-emerald-500"></textarea>
-                        </div>
-
-                        <div x-show="['image','video','audio','document','sticker'].includes(msgType)" class="space-y-2">
-                            <input type="file" name="media_file" class="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:text-emerald-700 file:font-medium hover:file:bg-emerald-100">
-                            <input name="caption" type="text" placeholder="Caption (optional)" class="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none text-sm focus:ring-2 focus:ring-emerald-500">
-                        </div>
-
-                        <div x-show="msgType === 'location'" class="grid grid-cols-2 gap-2">
-                            <input name="latitude" type="text" placeholder="Latitude" class="px-3 py-2 rounded-xl border border-slate-200 outline-none text-sm focus:ring-2 focus:ring-emerald-500">
-                            <input name="longitude" type="text" placeholder="Longitude" class="px-3 py-2 rounded-xl border border-slate-200 outline-none text-sm focus:ring-2 focus:ring-emerald-500">
-                            <input name="location_name" type="text" placeholder="Place name" class="px-3 py-2 rounded-xl border border-slate-200 outline-none text-sm focus:ring-2 focus:ring-emerald-500 col-span-2">
-                        </div>
-
-                        <div class="flex justify-end">
-                            <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition shadow-sm flex items-center gap-1.5 text-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                                Send
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                @endforeach
+                @if($selected->messages->isEmpty())
+                    <div class="flex items-center justify-center h-full text-slate-400 text-sm">No messages yet. Start the conversation.</div>
+                @endif
             </div>
-        </template>
-        <template x-if="!selected">
-            <div class="flex-1 flex items-center justify-center text-slate-400">
+
+            <!-- Composer -->
+            <div class="bg-[#f0f2f5] px-4 py-3 border-t border-slate-200">
+                <form method="POST" action="{{ route('conversations.send', $selected) }}" enctype="multipart/form-data" class="flex items-end gap-2">
+                    @csrf
+                    <input type="hidden" name="type" value="text" id="msgType">
+                    <div class="flex gap-1 mb-1">
+                        @foreach(['text','image','video','audio','document','location','sticker'] as $t)
+                            <button type="button" onclick="document.getElementById('msgType').value='{{ $t }}'; document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('bg-emerald-600','text-white')); this.classList.add('bg-emerald-600','text-white');" class="type-btn px-2 py-1 rounded-md text-[10px] font-medium transition {{ $t === 'text' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100' }}">{{ ucfirst($t) }}</button>
+                        @endforeach
+                    </div>
+                    <div class="flex-1 flex items-end gap-2 bg-white rounded-2xl px-3 py-2 shadow-sm">
+                        <label class="cursor-pointer p-1.5 rounded-full hover:bg-slate-100 transition" title="Attach file">
+                            <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                            <input type="file" name="media_file" class="hidden">
+                        </label>
+                        <textarea name="body" rows="1" placeholder="Type a message" class="flex-1 bg-transparent outline-none resize-none text-sm max-h-24"></textarea>
+                        <input name="caption" type="text" placeholder="Caption" class="hidden">
+                        <input name="latitude" type="hidden">
+                        <input name="longitude" type="hidden">
+                        <input name="location_name" type="hidden">
+                        <button type="submit" class="p-2 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 transition shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        @else
+            <div class="flex-1 flex items-center justify-center bg-[#f0f2f5]">
                 <div class="text-center">
-                    <div class="w-20 h-20 mx-auto rounded-3xl bg-slate-100 flex items-center justify-center mb-4">
-                        <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                    <div class="w-24 h-24 mx-auto rounded-full bg-slate-200 flex items-center justify-center mb-4">
+                        <svg class="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                     </div>
-                    <p class="font-medium text-slate-500">Select a conversation</p>
-                    <p class="text-sm text-slate-400 mt-1">Choose a chat from the list to start messaging.</p>
+                    <h3 class="text-xl font-light text-slate-600">WhatsApp Web Clone</h3>
+                    <p class="text-sm text-slate-400 mt-2 max-w-xs mx-auto">Select a conversation from the list to start messaging. Your messages are end-to-end... just kidding, this is Kapso.</p>
                 </div>
             </div>
-        </template>
+        @endif
     </div>
 </div>
-
-<script>
-function inboxApp(convs, selected) {
-    return {
-        conversations: convs || [],
-        selected: selected || null,
-        messages: selected ? selected.messages : [],
-        timer: null,
-        async init() {
-            if (this.selected) {
-                this.scrollToBottom();
-                this.timer = setInterval(() => this.poll(), 4000);
-            }
-        },
-        async select(id) {
-            if (this.selected && this.selected.id === id) return;
-            this.selected = null;
-            this.messages = [];
-            try {
-                const res = await fetch(`/conversations/${id}/data`, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
-                const data = await res.json();
-                this.selected = data;
-                this.messages = data.messages || [];
-                // update unread in list
-                const c = this.conversations.find(x => x.id === id);
-                if (c) c.unread = 0;
-                this.$nextTick(() => this.scrollToBottom());
-                if (this.timer) clearInterval(this.timer);
-                this.timer = setInterval(() => this.poll(), 4000);
-            } catch (e) { console.error(e); }
-        },
-        async poll() {
-            if (!this.selected) return;
-            const lastId = this.messages.length ? this.messages[this.messages.length - 1].id : 0;
-            try {
-                const res = await fetch(`/conversations/${this.selected.id}/poll?after_id=${lastId}`, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-                });
-                const data = await res.json();
-                if (data.messages && data.messages.length) {
-                    this.messages = this.messages.concat(data.messages);
-                    this.$nextTick(() => this.scrollToBottom());
-                }
-            } catch (e) { console.error(e); }
-        },
-        async send(e) {
-            const form = e.target;
-            const formData = new FormData(form);
-            try {
-                const res = await fetch(form.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-                });
-                const data = await res.json();
-                if (data.ok && data.message) {
-                    this.messages = this.messages.concat(data.message);
-                    form.reset();
-                    this.$nextTick(() => this.scrollToBottom());
-                } else if (data.error) {
-                    alert(data.error);
-                }
-            } catch (err) { console.error(err); alert('Send failed'); }
-        },
-        scrollToBottom() {
-            const box = this.$refs.box;
-            if (box) box.scrollTop = box.scrollHeight;
-        }
-    }
-}
-</script>
 @endsection
