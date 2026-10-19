@@ -19,7 +19,7 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700 mb-1.5">Base URL</label>
-            <input name="kapso_base_url" value="{{ old('kapso_base_url', $settings['kapso_base_url'] ?? 'https://api.kapso.ai') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition">
+            <input name="kapso_base_url" value="{{ old('kapso_base_url', $settings['kapso_base_url'] ?? 'https://api.kapso.ai/meta/whatsapp/v24.0') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700 mb-1.5">API Key</label>
