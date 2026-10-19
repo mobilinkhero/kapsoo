@@ -7,7 +7,7 @@
             <h2 class="text-2xl font-bold text-slate-900">Contacts</h2>
             <p class="text-sm text-slate-500 mt-1">Manage your WhatsApp contacts</p>
         </div>
-        <a href="{{ route('contacts.create') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold text-sm hover:from-emerald-700 hover:to-teal-700 transition shadow-lg shadow-emerald-500/25">
+        <a href="{{ route('contacts.create') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-600 text-white font-semibold text-sm hover:from-emerald-600 hover:to-emerald-700 transition shadow-lg shadow-emerald-500/25">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             New Contact
         </a>
@@ -34,7 +34,7 @@
                         <tr class="hover:bg-slate-50/60 transition group">
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-slate-600 font-semibold group-hover:from-emerald-400 group-hover:to-teal-500 group-hover:text-white transition">
+                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-slate-600 font-semibold group-hover:from-emerald-400 group-hover:to-emerald-500 group-hover:text-white transition">
                                         {{ strtoupper(substr($contact->name ?? $contact->phone, 0, 1)) }}
                                     </div>
                                     <span class="font-medium text-slate-900">{{ $contact->name ?? 'Unnamed' }}</span>
@@ -43,7 +43,7 @@
                             <td class="px-6 py-4 text-slate-600 font-mono text-xs">{{ $contact->phone }}</td>
                             <td class="px-6 py-4 text-slate-500">{{ $contact->last_seen_at?->diffForHumans() ?? 'Never' }}</td>
                             <td class="px-6 py-4 text-right space-x-3">
-                                <a href="{{ route('contacts.edit', $contact) }}" class="text-emerald-600 hover:text-emerald-700 font-medium">Edit</a>
+                                <a href="{{ route('contacts.edit', $contact) }}" class="text-emerald-600 hover:text-emerald-600 font-medium">Edit</a>
                                 <form action="{{ route('contacts.destroy', $contact) }}" method="POST" class="inline" onsubmit="return confirm('Delete this contact?')">
                                     @csrf @method('DELETE')
                                     <button class="text-red-500 hover:text-red-600 font-medium">Delete</button>

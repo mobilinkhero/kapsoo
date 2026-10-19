@@ -37,18 +37,18 @@
             </div>
             <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
                 <p class="text-xs text-slate-500">Webhook URL to configure in Kapso:</p>
-                <code class="text-xs text-emerald-700 font-mono break-all">{{ url('/api/webhooks/kapso') }}</code>
+                <code class="text-xs text-emerald-600 font-mono break-all">{{ url('/api/webhooks/kapso') }}</code>
             </div>
             <div class="flex flex-wrap gap-3">
-                <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-600 text-white font-semibold hover:from-emerald-700 hover:to-emerald-700 transition shadow-lg shadow-emerald-500/25">Save Kapso</button>
+                <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-600 text-white font-semibold hover:from-emerald-600 hover:to-emerald-600 transition shadow-lg shadow-emerald-500/25">Save Kapso</button>
                 <button type="submit" name="test_mode" value="1" class="px-6 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition shadow-sm">Test Connection</button>
             </div>
             @if(session('saved_section') === 'kapso' && session('success'))
-                <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 text-sm">{{ session('success') }}</div>
+                <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 px-4 py-3 text-sm">{{ session('success') }}</div>
             @endif
             @if(session('test_section') === 'kapso' && session('test_result'))
                 @php $tr = session('test_result'); @endphp
-                <div class="rounded-xl px-4 py-3 text-sm {{ ($tr['ok'] ?? false) ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700' }}">
+                <div class="rounded-xl px-4 py-3 text-sm {{ ($tr['ok'] ?? false) ? 'bg-emerald-50 border border-emerald-200 text-emerald-600' : 'bg-red-50 border border-red-200 text-red-700' }}">
                     <p class="font-semibold">{{ ($tr['ok'] ?? false) ? 'Connection successful (HTTP ' . ($tr['status'] ?? '?') . ')' : 'Connection failed (HTTP ' . ($tr['status'] ?? '?') . ')' }}</p>
                     <pre class="mt-2 text-xs overflow-x-auto whitespace-pre-wrap bg-white/50 rounded-lg p-3">{{ json_encode($tr, JSON_PRETTY_PRINT) }}</pre>
                 </div>
@@ -97,15 +97,15 @@
                 <textarea name="ai_system_prompt" rows="5" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition">{{ old('ai_system_prompt', $settings['ai_system_prompt'] ?? '') }}</textarea>
             </div>
             <div class="flex flex-wrap gap-3">
-                <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 text-white font-semibold hover:from-emerald-700 hover:to-blue-700 transition shadow-lg shadow-emerald-500/25">Save AI</button>
+                <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 text-white font-semibold hover:from-emerald-600 hover:to-blue-700 transition shadow-lg shadow-emerald-500/25">Save AI</button>
                 <button type="submit" name="test_mode" value="1" class="px-6 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition shadow-sm">Test Connection</button>
             </div>
             @if(session('saved_section') === 'ai' && session('success'))
-                <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 text-sm">{{ session('success') }}</div>
+                <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 px-4 py-3 text-sm">{{ session('success') }}</div>
             @endif
             @if(session('test_section') === 'ai' && session('test_result'))
                 @php $tr = session('test_result'); @endphp
-                <div class="rounded-xl px-4 py-3 text-sm {{ ($tr['ok'] ?? false) ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700' }}">
+                <div class="rounded-xl px-4 py-3 text-sm {{ ($tr['ok'] ?? false) ? 'bg-emerald-50 border border-emerald-200 text-emerald-600' : 'bg-red-50 border border-red-200 text-red-700' }}">
                     <p class="font-semibold">{{ ($tr['ok'] ?? false) ? 'Connection successful (HTTP ' . ($tr['status'] ?? '?') . ')' : 'Connection failed (HTTP ' . ($tr['status'] ?? '?') . ')' }}</p>
                     <pre class="mt-2 text-xs overflow-x-auto whitespace-pre-wrap bg-white/50 rounded-lg p-3">{{ json_encode($tr, JSON_PRETTY_PRINT) }}</pre>
                 </div>

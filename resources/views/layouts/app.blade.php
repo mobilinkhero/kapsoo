@@ -33,7 +33,7 @@
             <svg class="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">K</div>
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">K</div>
             <span class="font-bold text-slate-900">@yield('title', 'Kapso')</span>
         </div>
         <div class="w-10"></div>
@@ -47,7 +47,7 @@
         <!-- Brand -->
         <div class="h-18 flex items-center px-6 py-5 border-b border-slate-800">
             <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-emerald-500/30">K</div>
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-emerald-500/30">K</div>
                 <div>
                     <p class="font-bold text-white text-lg leading-tight">Kapso</p>
                     <p class="text-xs text-slate-500">WhatsApp Suite</p>
@@ -94,7 +94,7 @@
         <!-- User -->
         <div class="p-4 border-t border-slate-800">
             <div class="flex items-center gap-3 px-2 py-2">
-                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-semibold text-sm">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-semibold text-sm">
                     {{ strtoupper(substr(auth()->user()->name ?? 'A', 0, 1)) }}
                 </div>
                 <div class="flex-1 min-w-0">
@@ -142,9 +142,9 @@
 
         <div class="{{ $isInboxPage ? 'p-0' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6' }}">
             @if(session('success'))
-                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)" x-transition class="mb-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-5 py-3.5 flex items-center justify-between fade-in">
+                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)" x-transition class="mb-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 px-5 py-3.5 flex items-center justify-between fade-in">
                     <span>{{ session('success') }}</span>
-                    <button @click="show = false" class="text-emerald-500 hover:text-emerald-700">
+                    <button @click="show = false" class="text-emerald-500 hover:text-emerald-600">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
