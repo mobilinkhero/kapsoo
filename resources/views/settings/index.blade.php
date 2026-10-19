@@ -54,7 +54,7 @@ function settingsPage() {
             this.testing = true;
             this.result = null;
             try {
-                const res = await fetch('{{ route('settings.test') }}', {
+                const res = await fetch('{{ url('/settings/test') }}', {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
