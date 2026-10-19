@@ -3,14 +3,7 @@
 // Usage: https://yourdomain.com/deploy.php?token=YOUR_SECRET_TOKEN
 // DELETE THIS FILE after deployment.
 
-$token = $_GET['token'] ?? '';
-$secret = 'change-this-to-a-long-random-string';
-
-if (!hash_equals($secret, $token)) {
-    http_response_code(403);
-    exit('Forbidden');
-}
-
+// WARNING: No authentication. Delete this file immediately after use.
 require __DIR__ . '/../vendor/autoload.php';
 $app = require_once __DIR__ . '/../bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
