@@ -23,6 +23,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('conversations', ConversationController::class);
     Route::post('conversations/{conversation}/messages', [ConversationController::class, 'sendMessage'])->name('conversations.send');
     Route::post('conversations/{conversation}/read', [ConversationController::class, 'markRead'])->name('conversations.read');
+Route::get('conversations/{conversation}/poll', [ConversationController::class, 'poll'])->name('conversations.poll');
 
     Route::resource('templates', TemplateController::class);
     Route::post('templates/sync', [TemplateController::class, 'sync'])->name('templates.sync');

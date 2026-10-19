@@ -70,4 +70,25 @@ class ConversationController extends Controller
         $conversation->update(['unread_count' => 0]);
         return response()->json(['ok' => true]);
     }
+
+    public function poll(Conversation $conversation, Request $request)
+    {
+        $afterId = (int) $request->get('after_id', 0);
+        $messages = $conversation->messages()
+            ->where('id', '>', $afterId)
+            ->orderBy('id')
+            ->get()
+            ->map(fn ($m) => [
+                'id' => $m->id,
+                'direction' => $m->direction,
+                'body' => $m->body,
+                'status' => $m->status,
+                'time' => $m->sent_at?->format('H:i'),
+            ]);
+
+        return response()->json([
+            'messages' => $messages,
+            'unread_count' => $conversation->fresh()->unread_count,
+        ]);
+    }
 }
