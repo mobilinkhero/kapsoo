@@ -26,7 +26,7 @@
 </head>
 <body class="h-full bg-slate-100 text-slate-800 antialiased">
 @php $isInboxPage = request()->routeIs('conversations.*'); @endphp
-<div x-data="{ sidebarOpen: false, mobileNav: false, sidebarCollapsed: false }" x-init="sidebarCollapsed = (localStorage.getItem('appSidebarCollapsed') === '1')" class="min-h-full" :class="sidebarCollapsed ? 'app-sidebar-collapsed' : ''">
+<div x-data="{ sidebarOpen: false, mobileNav: false }" class="min-h-full">
     <!-- Mobile top bar -->
     <header class="lg:hidden sticky top-0 z-40 glass border-b border-slate-200/60 px-4 py-3 flex items-center justify-between">
         <button @click="sidebarOpen = true" class="p-2 rounded-xl hover:bg-slate-200/60 transition">
@@ -43,7 +43,7 @@
     <div x-show="sidebarOpen" x-cloak @click="sidebarOpen = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden" x-transition.opacity></div>
 
     <!-- Sidebar -->
-    <aside :class="[sidebarOpen ? 'translate-x-0' : '-translate-x-full', sidebarCollapsed ? 'lg:-translate-x-full' : 'lg:translate-x-0']" class="fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 transform transition-transform duration-300 ease-out flex flex-col">
+    <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'" class="fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 transform transition-transform duration-300 ease-out flex flex-col">
         <!-- Brand -->
         <div class="h-18 flex items-center px-6 py-5 border-b border-slate-800">
             <div class="flex items-center gap-3">
@@ -56,9 +56,7 @@
             <button @click="sidebarOpen = false" class="ml-auto lg:hidden p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            <button @click="sidebarCollapsed = true; localStorage.setItem('appSidebarCollapsed', '1'); var b=document.getElementById('sidebarExpandBtn'); if(b) b.style.display='flex';" class="hidden lg:block ml-auto p-1.5 rounded-lg hover:bg-slate-800 text-slate-400" title="Collapse sidebar">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
-            </button>
+
         </div>
 
         <!-- Nav -->
@@ -112,34 +110,10 @@
         </div>
     </aside>
 
-    <!-- Sidebar expand button (shown when collapsed) -->
-    <button id="sidebarExpandBtn" type="button" onclick="expandSidebar()" class="fixed top-3 left-3 z-[60] items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-white shadow-md hover:bg-slate-700 transition" title="Show sidebar" style="display: none;">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-    </button>
-    <script>
-        function expandSidebar() {
-            try { localStorage.setItem('appSidebarCollapsed', '0'); } catch (e) {}
-            var el = document.querySelector('[x-data]');
-            if (el && el.__x) { el.__x.$data.sidebarCollapsed = false; }
-            var btn = document.getElementById('sidebarExpandBtn');
-            if (btn) btn.style.display = 'none';
-            var aside = document.querySelector('aside');
-            if (aside) { aside.classList.remove('lg:-translate-x-full'); aside.classList.add('lg:translate-x-0'); }
-            var main = document.querySelector('main');
-            if (main) { main.classList.remove('lg:pl-0'); main.classList.add('lg:pl-72'); }
-        }
-        (function () {
-            try {
-                if (localStorage.getItem('appSidebarCollapsed') === '1') {
-                    var btn = document.getElementById('sidebarExpandBtn');
-                    if (btn) btn.style.display = 'flex';
-                }
-            } catch (e) {}
-        })();
-    </script>
+
 
     <!-- Main -->
-    <main :class="sidebarCollapsed ? 'lg:pl-0' : 'lg:pl-72'" class="min-h-screen transition-all duration-300">
+    <main class="min-h-screen lg:pl-72">
         <!-- Top bar -->
         @unless($isInboxPage)
         <header class="sticky top-0 z-30 glass border-b border-slate-200/60">
