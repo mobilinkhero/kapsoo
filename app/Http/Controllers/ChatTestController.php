@@ -56,10 +56,12 @@ class ChatTestController extends Controller
             'sent_at' => now(),
         ]);
 
+        $beforeOutboundId = $conversation->messages()->where('direction', 'outbound')->max('id') ?? 0;
+
         $before = microtime(true);
         $error = null;
         try {
-            $this->ai->handleInbound($inbound);
+            $this->ai->handleInbound($inbound, true);
         } catch (\Throwable $e) {
             $error = $e->getMessage();
         }
@@ -67,7 +69,11 @@ class ChatTestController extends Controller
 
         $inbound->refresh();
         $conversation->refresh();
-        $outbound = $conversation->messages()->where('direction', 'outbound')->latest()->first();
+        $outbound = $conversation->messages()
+            ->where('direction', 'outbound')
+            ->where('id', '>', $beforeOutboundId)
+            ->latest()
+            ->first();
 
         return response()->json([
             'ok' => true,
@@ -101,6 +107,13 @@ class ChatTestController extends Controller
 
     public function reset()
     {
+        $convId = Session::get('chat_test_conversation_id');
+        if ($convId) {
+            Conversation::where('id', $convId)->delete();
+        }
+        Contact::where('phone', '923001234567')->each(function ($c) {
+            Conversation::where('contact_id', $c->id)->delete();
+        });
         Session::forget('chat_test_conversation_id');
 
         return response()->json(['ok' => true]);

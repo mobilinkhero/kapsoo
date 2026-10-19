@@ -20,7 +20,7 @@ class AiService
         return $this->openai->isConfigured() && filter_var($this->setting('ai_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
     }
 
-    public function handleInbound(Message $message): void
+    public function handleInbound(Message $message, bool $simulate = false): void
     {
         $conversation = $message->conversation()->with('contact', 'messages')->first();
         if (! $conversation || ! $this->isEnabled()) {
@@ -106,18 +106,29 @@ class AiService
 
         // Auto mode: send reply
         if ($conversation->ai_mode === 'auto' && ! empty($result['reply'])) {
-            $contact = $conversation->contact;
-            $sendResult = $this->kapso->sendMessage($contact->phone, $result['reply']);
-            $mid = $sendResult['messages'][0]['id'] ?? null;
-            Message::create([
-                'conversation_id' => $conversation->id,
-                'kapso_message_id' => $mid,
-                'direction' => 'outbound',
-                'type' => 'text',
-                'body' => $result['reply'],
-                'status' => $mid ? 'sent' : 'failed',
-                'sent_at' => now(),
-            ]);
+            if ($simulate) {
+                Message::create([
+                    'conversation_id' => $conversation->id,
+                    'direction' => 'outbound',
+                    'type' => 'text',
+                    'body' => $result['reply'],
+                    'status' => 'sent (simulated)',
+                    'sent_at' => now(),
+                ]);
+            } else {
+                $contact = $conversation->contact;
+                $sendResult = $this->kapso->sendMessage($contact->phone, $result['reply']);
+                $mid = $sendResult['messages'][0]['id'] ?? null;
+                Message::create([
+                    'conversation_id' => $conversation->id,
+                    'kapso_message_id' => $mid,
+                    'direction' => 'outbound',
+                    'type' => 'text',
+                    'body' => $result['reply'],
+                    'status' => $mid ? 'sent' : 'failed',
+                    'sent_at' => now(),
+                ]);
+            }
             $conversation->update(['last_message_at' => now()]);
         }
     }

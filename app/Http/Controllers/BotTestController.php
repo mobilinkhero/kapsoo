@@ -65,7 +65,7 @@ class BotTestController extends Controller
         // Run AI synchronously for testing
         $before = microtime(true);
         try {
-            $this->ai->handleInbound($message);
+            $this->ai->handleInbound($message, true);
         } catch (\Throwable $e) {
             $error = $e->getMessage();
         }
