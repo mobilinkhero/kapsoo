@@ -22,10 +22,18 @@
         .nav-active { background: linear-gradient(90deg, rgba(16,185,129,.15), transparent); border-left: 3px solid #10b981; }
         .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+        /* Sidebar collapse (CSS-driven, no Alpine dependency) */
+        .sidebar-expand-btn { display: none; }
+        html.sidebar-collapsed .sidebar-expand-btn { display: flex; }
+        @media (min-width: 1024px) {
+            html.sidebar-collapsed aside.sidebar { transform: translateX(-100%); }
+            html.sidebar-collapsed main { padding-left: 0 !important; }
+        }
     </style>
 </head>
 <body class="h-full bg-slate-100 text-slate-800 antialiased">
 @php $isInboxPage = request()->routeIs('conversations.*'); @endphp
+<script>(function(){try{if(localStorage.getItem('appSidebarCollapsed')==='1'){document.documentElement.classList.add('sidebar-collapsed');}}catch(e){}})();</script>
 <div x-data="{ sidebarOpen: false, mobileNav: false }" class="min-h-full">
     <!-- Mobile top bar -->
     <header class="lg:hidden sticky top-0 z-40 glass border-b border-slate-200/60 px-4 py-3 flex items-center justify-between">
@@ -43,7 +51,7 @@
     <div x-show="sidebarOpen" x-cloak @click="sidebarOpen = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden" x-transition.opacity></div>
 
     <!-- Sidebar -->
-    <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'" class="fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 transform transition-transform duration-300 ease-out flex flex-col">
+    <aside class="sidebar fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 transform transition-transform duration-300 ease-out flex flex-col" :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'">
         <!-- Brand -->
         <div class="h-18 flex items-center px-6 py-5 border-b border-slate-800">
             <div class="flex items-center gap-3">
@@ -53,6 +61,9 @@
                     <p class="text-xs text-slate-500">WhatsApp Suite</p>
                 </div>
             </div>
+            <button type="button" onclick="collapseSidebar()" class="hidden lg:block ml-auto p-1.5 rounded-lg hover:bg-slate-800 text-slate-400" title="Collapse sidebar">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+            </button>
             <button @click="sidebarOpen = false" class="ml-auto lg:hidden p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
@@ -176,5 +187,19 @@
         @endforeach
     </nav>
 </div>
+    <!-- Sidebar expand button (shown when collapsed) -->
+    <button id="sidebarExpandBtn" type="button" onclick="expandSidebar()" class="sidebar-expand-btn fixed top-3 left-3 z-[60] items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-white shadow-md hover:bg-slate-700 transition" title="Show sidebar">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <script>
+        function collapseSidebar() {
+            try { localStorage.setItem('appSidebarCollapsed', '1'); } catch (e) {}
+            document.documentElement.classList.add('sidebar-collapsed');
+        }
+        function expandSidebar() {
+            try { localStorage.setItem('appSidebarCollapsed', '0'); } catch (e) {}
+            document.documentElement.classList.remove('sidebar-collapsed');
+        }
+    </script>
 </body>
 </html>
