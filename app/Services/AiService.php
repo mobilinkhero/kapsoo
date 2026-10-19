@@ -27,10 +27,9 @@ class AiService
         if (! $conversation || ! $this->isEnabled()) {
             return;
         }
-        if ($conversation->ai_mode === 'off' || $conversation->ai_handoff) {
-            if ($conversation->ai_mode === 'off') {
-                return;
-            }
+        // Respect an explicitly disabled AI mode, but otherwise always reply.
+        if ($conversation->ai_mode === 'off') {
+            return;
         }
 
         $contact = $conversation->contact;
@@ -101,33 +100,22 @@ class AiService
             $conversation->update([
                 'ai_handoff' => true,
                 'handoff_reason' => $reason,
-                'ai_mode' => 'off',
             ]);
             Log::info('AI handoff triggered', ['conversation' => $conversation->id, 'reason' => $reason]);
-
-            $this->updateContactMemory($contact, $conversation, $message, $result);
-
-            return;
         }
 
-        // Confidence-based handoff
+        // Confidence-based handoff (flag only, keep replying)
         $confidence = (float) ($result['confidence'] ?? 1);
         $threshold = (float) $this->setting('ai_handoff_confidence', '0.5');
         if ($confidence < $threshold) {
             $conversation->update([
                 'ai_handoff' => true,
                 'handoff_reason' => 'Low AI confidence ('.round($confidence, 2).')',
-                'ai_mode' => 'off',
             ]);
-
-            $this->updateContactMemory($contact, $conversation, $message, $result);
-
-            return;
         }
 
-        // Auto-reply: send the reply for any active AI mode (assist or auto) so every
-        // incoming message gets an answer. In assist mode the suggestion is also kept.
-        if (in_array($conversation->ai_mode, ['assist', 'auto'], true) && ! empty($result['reply'])) {
+        // Always reply to every incoming message when AI is enabled.
+        if (! empty($result['reply'])) {
             if ($simulate) {
                 Message::create([
                     'conversation_id' => $conversation->id,
@@ -138,8 +126,8 @@ class AiService
                     'sent_at' => now(),
                 ]);
             } else {
-                $contact = $conversation->contact;
-                $sendResult = $this->kapso->sendMessage($contact->phone, $result['reply']);
+                $sendContact = $conversation->contact;
+                $sendResult = $this->kapso->sendMessage($sendContact->phone, $result['reply']);
                 $mid = $sendResult['messages'][0]['id'] ?? null;
                 Message::create([
                     'conversation_id' => $conversation->id,
