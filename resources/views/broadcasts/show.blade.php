@@ -6,7 +6,7 @@
         <h1 class="text-2xl font-bold text-slate-900">{{ $broadcast->name }}</h1>
         @if($broadcast->status === 'draft')
             <form method="POST" action="{{ route('broadcasts.send', $broadcast) }}">@csrf
-                <button class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-600 transition">Send Now</button>
+                <button class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition">Send Now</button>
             </form>
         @endif
     </div>

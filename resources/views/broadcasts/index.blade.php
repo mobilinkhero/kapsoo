@@ -7,7 +7,7 @@
             <h2 class="text-2xl font-bold text-slate-900">Broadcasts</h2>
             <p class="text-sm text-slate-500 mt-1">Send templates to many recipients</p>
         </div>
-        <a href="{{ route('broadcasts.create') }}" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-600 text-white font-semibold hover:from-emerald-600 hover:to-emerald-700 transition shadow-lg shadow-emerald-500/25">New Broadcast</a>
+        <a href="{{ route('broadcasts.create') }}" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:from-emerald-700 hover:to-teal-700 transition shadow-lg shadow-emerald-500/25">New Broadcast</a>
     </div>
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
@@ -29,7 +29,7 @@
                             <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">{{ $b->status }}</span></td>
                             <td class="px-6 py-4 text-slate-600">{{ $b->sent_count }} / {{ $b->failed_count }}</td>
                             <td class="px-6 py-4 text-right">
-                                <a href="{{ route('broadcasts.show', $b) }}" class="text-emerald-600 hover:text-emerald-600 font-medium">View</a>
+                                <a href="{{ route('broadcasts.show', $b) }}" class="text-emerald-600 hover:text-emerald-700 font-medium">View</a>
                             </td>
                         </tr>
                     @empty

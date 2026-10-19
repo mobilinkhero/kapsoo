@@ -5,7 +5,7 @@
     <h2 class="text-2xl font-bold text-slate-900">Test RAG Retrieval</h2>
     <form method="GET" action="{{ route('knowledge.test') }}" class="flex gap-3">
         <input name="q" value="{{ $query }}" placeholder="Ask a question..." class="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">
-        <button class="px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-600 transition">Ask</button>
+        <button class="px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">Ask</button>
     </form>
 
     @if($query)

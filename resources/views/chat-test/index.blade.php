@@ -25,7 +25,7 @@
         <form id="chatForm" class="p-3 border-t border-slate-200 bg-white flex gap-2">
             @csrf
             <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none">
-            <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-600 transition">Send</button>
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">Send</button>
         </form>
     </div>
 </div>

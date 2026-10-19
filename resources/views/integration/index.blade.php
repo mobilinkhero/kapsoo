@@ -14,7 +14,7 @@
         </div>
         <div>
             <p class="font-semibold {{ $configured ? 'text-emerald-800' : 'text-amber-800' }}">{{ $configured ? 'Kapso is configured' : 'Kapso is not configured yet' }}</p>
-            <p class="text-sm {{ $configured ? 'text-emerald-600' : 'text-amber-700' }}">{{ $configured ? 'API key and phone number ID are set.' : 'Add your API key and phone number ID in Settings.' }}</p>
+            <p class="text-sm {{ $configured ? 'text-emerald-700' : 'text-amber-700' }}">{{ $configured ? 'API key and phone number ID are set.' : 'Add your API key and phone number ID in Settings.' }}</p>
         </div>
         <a href="{{ route('settings.index') }}" class="ml-auto px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">Open Settings</a>
     </div>
@@ -36,7 +36,7 @@
         @endphp
         @foreach($steps as $i => [$title, $desc])
             <div class="flex gap-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm card-hover">
-                <div class="shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm shadow">
+                <div class="shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm shadow">
                     {{ $i + 1 }}
                 </div>
                 <div>

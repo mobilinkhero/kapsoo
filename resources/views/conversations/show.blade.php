@@ -18,14 +18,14 @@
         <a href="{{ route('conversations.index') }}" class="p-2 rounded-xl hover:bg-slate-100 transition">
             <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         </a>
-        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-semibold shadow">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-semibold shadow">
             {{ strtoupper(substr($conversation->contact->name ?? $conversation->contact->phone, 0, 1)) }}
         </div>
         <div class="flex-1 min-w-0">
             <p class="font-semibold text-slate-900 truncate">{{ $conversation->contact->name ?? $conversation->contact->phone }}</p>
             <p class="text-xs text-slate-500 truncate">{{ $conversation->contact->phone }} · {{ $conversation->status }}</p>
         </div>
-        <span class="px-2.5 py-1 rounded-full text-xs font-medium {{ $conversation->status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600' }}">{{ ucfirst($conversation->status) }}</span>
+        <span class="px-2.5 py-1 rounded-full text-xs font-medium {{ $conversation->status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">{{ ucfirst($conversation->status) }}</span>
     </div>
 
     <!-- Chat -->
@@ -33,7 +33,7 @@
         <template x-for="m in messages" :key="m.id">
             <div class="flex" :class="m.direction === 'outbound' ? 'justify-end' : 'justify-start'">
                 <div class="max-w-[78%]">
-                    <div class="px-4 py-2.5 rounded-2xl shadow-sm" :class="m.direction === 'outbound' ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-br-md' : 'bg-white text-slate-800 rounded-bl-md border border-slate-200'">
+                    <div class="px-4 py-2.5 rounded-2xl shadow-sm" :class="m.direction === 'outbound' ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-br-md' : 'bg-white text-slate-800 rounded-bl-md border border-slate-200'">
                         <!-- Image -->
                         <template x-if="m.type === 'image' && m.media_url">
                             <img :src="m.media_url" class="rounded-lg max-w-full mb-2" alt="image">
@@ -119,7 +119,7 @@
             </div>
 
             <div class="flex justify-end">
-                <button type="submit" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-600 text-white font-semibold hover:from-emerald-600 hover:to-emerald-700 transition shadow-lg shadow-emerald-500/25 flex items-center gap-2 text-sm">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:from-emerald-700 hover:to-teal-700 transition shadow-lg shadow-emerald-500/25 flex items-center gap-2 text-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                     Send
                 </button>

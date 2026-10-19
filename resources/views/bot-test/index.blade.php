@@ -39,7 +39,7 @@
                 </label>
             </div>
         </div>
-        <button class="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-600 transition">Run Test</button>
+        <button class="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">Run Test</button>
     </form>
 
     @if(isset($conversations) && $conversations->count())
