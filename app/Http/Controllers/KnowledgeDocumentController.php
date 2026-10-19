@@ -29,6 +29,24 @@ class KnowledgeDocumentController extends Controller
         return redirect()->route('knowledge.edit', $knowledge);
     }
 
+    public function reindexAll()
+    {
+        $count = 0;
+        foreach (KnowledgeDocument::where('active', true)->get() as $doc) {
+            $doc->chunks()->delete();
+            $this->kb->updateDocument($doc, [
+                'title' => $doc->title,
+                'content' => $doc->content,
+                'type' => $doc->type,
+                'source' => $doc->source,
+                'active' => $doc->active,
+            ]);
+            $count++;
+        }
+
+        return redirect()->route('knowledge.index')->with('success', "Reindexed {$count} documents.");
+    }
+
     public function importUrl(Request $request)
     {
         $data = $request->validate([

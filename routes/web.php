@@ -43,6 +43,7 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('knowledge', KnowledgeDocumentController::class);
     Route::post('knowledge/import-url', [KnowledgeDocumentController::class, 'importUrl'])->name('knowledge.importUrl');
+    Route::post('knowledge/reindex-all', [KnowledgeDocumentController::class, 'reindexAll'])->name('knowledge.reindexAll');
     Route::get('knowledge/test', [KnowledgeDocumentController::class, 'test'])->name('knowledge.test');
 
     Route::post('conversations/{conversation}/ai-mode', [AiController::class, 'setMode'])->name('conversations.aiMode');

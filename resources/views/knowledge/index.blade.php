@@ -8,6 +8,10 @@
             <p class="text-sm text-slate-500 mt-1">Documents used by the AI for RAG</p>
         </div>
         <div class="flex gap-2">
+            <form method="POST" action="{{ route('knowledge.reindexAll') }}" class="inline">
+                @csrf
+                <button class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition">Reindex All</button>
+            </form>
             <a href="{{ route('knowledge.test') }}" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition">Test RAG</a>
             <a href="{{ route('knowledge.create') }}" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">+ Add Document</a>
         </div>
