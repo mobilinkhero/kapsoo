@@ -50,7 +50,7 @@
             @if($m->type === 'location')
                 <a class="wai-loc" href="https://maps.google.com/?q={{ urlencode($m->body ?? '') }}" target="_blank">📍 View on map</a>
             @endif
-            @php $hideBody = in_array($m->type, ['image','video','audio','sticker','document']) && is_string($m->body) && (str_contains($m->body, 'http') || preg_match('/^(image|video|audio|document|sticker|voice)\s+attached\b/i', $m->body)); @endphp
+            @php $hideBody = in_array($m->type, ['image','video','audio','sticker','document']) && is_string($m->body) && (str_contains($m->body, 'http') || str_contains(strtolower($m->body), 'attached')); @endphp
             @if($m->body && $m->type !== 'location' && ! $hideBody)
                 <div class="cap">{{ $m->body }}</div>
             @endif

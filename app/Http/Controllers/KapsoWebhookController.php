@@ -125,7 +125,7 @@ class KapsoWebhookController extends Controller
             } else {
                 // Drop auto-generated attachment descriptions and raw URLs;
                 // only a real caption should render as text
-                if (is_string($body) && str_contains($body, 'http')) {
+                if (is_string($body) && (str_contains($body, 'http') || str_contains(strtolower($body), 'attached'))) {
                     $body = null;
                 } elseif (is_string($body) && preg_match('/^(image|video|audio|document|sticker|voice)\s+attached\b/i', $body)) {
                     $body = null;

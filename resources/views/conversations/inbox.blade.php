@@ -349,7 +349,7 @@
         if (m.type === 'location') inner += '<a class="wai-loc" href="https://maps.google.com/?q=' + encodeURIComponent(m.body || '') + '" target="_blank">📍 View on map</a>';
         var isMedia = ['image','video','audio','sticker','document'].indexOf(m.type) !== -1;
         var b = m.body || '';
-        var bodyIsDesc = isMedia && (b.indexOf('http') !== -1 || /^(image|video|audio|document|sticker|voice)\s+attached\b/i.test(b));
+        var bodyIsDesc = isMedia && (b.indexOf('http') !== -1 || b.toLowerCase().indexOf('attached') !== -1);
         if (m.body && m.type !== 'location' && !bodyIsDesc) inner += '<div class="cap">' + esc(m.body) + '</div>';
         const tick = m.direction === 'outbound' ? '<span class="tick">' + (m.status === 'read' || m.status === 'delivered' ? '✓✓' : '✓') + '</span>' : '';
         inner += '<div class="wai-meta"><span>' + esc(m.time || '') + '</span>' + tick + '</div>';
