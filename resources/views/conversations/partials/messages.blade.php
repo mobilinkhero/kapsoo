@@ -50,7 +50,7 @@
             @if($m->type === 'location')
                 <a class="wai-loc" href="https://maps.google.com/?q={{ urlencode($m->body ?? '') }}" target="_blank">📍 View on map</a>
             @endif
-            @if($m->body && $m->type !== 'location')
+            @if($m->body && $m->type !== 'location' && !(in_array($m->type, ['image','video','audio','sticker','document']) && filter_var($m->body, FILTER_VALIDATE_URL)))
                 <div class="cap">{{ $m->body }}</div>
             @endif
             <div class="wai-meta">

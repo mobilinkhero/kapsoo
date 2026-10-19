@@ -347,7 +347,9 @@
             else inner += '<a class="wai-file" href="/media/download?url=' + encodeURIComponent(m.media_url) + '" download>📄 Download file</a>';
         }
         if (m.type === 'location') inner += '<a class="wai-loc" href="https://maps.google.com/?q=' + encodeURIComponent(m.body || '') + '" target="_blank">📍 View on map</a>';
-        if (m.body && m.type !== 'location') inner += '<div class="cap">' + esc(m.body) + '</div>';
+        var isMedia = ['image','video','audio','sticker','document'].indexOf(m.type) !== -1;
+        var bodyIsUrl = isMedia && /^https?:\\/\\//.test(m.body || '');
+        if (m.body && m.type !== 'location' && !bodyIsUrl) inner += '<div class="cap">' + esc(m.body) + '</div>';
         const tick = m.direction === 'outbound' ? '<span class="tick">' + (m.status === 'read' || m.status === 'delivered' ? '✓✓' : '✓') + '</span>' : '';
         inner += '<div class="wai-meta"><span>' + esc(m.time || '') + '</span>' + tick + '</div>';
         html += '<div class="wai-row ' + (m.direction === 'outbound' ? 'out' : 'in') + '" data-mid="' + esc(m.id) + '">' +

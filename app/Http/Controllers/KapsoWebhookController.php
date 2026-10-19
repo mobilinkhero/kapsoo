@@ -110,6 +110,8 @@ class KapsoWebhookController extends Controller
         $msg = $data['message'] ?? [];
         $kapso = $msg['kapso'] ?? [];
 
+        $mediaUrl = $kapso['media_url'] ?? null;
+
         $body = $kapso['content'] ?? null;
         if (! $body && isset($msg['text']['body'])) {
             $body = $msg['text']['body'];
@@ -120,8 +122,13 @@ class KapsoWebhookController extends Controller
             $typeData = $kapso['message_type_data'] ?? [];
             if (! empty($typeData['caption'])) {
                 $body = $typeData['caption'];
-            } elseif (empty($body)) {
-                $body = null;
+            } else {
+                // Never store a raw media URL as the message body/caption
+                if (is_string($body) && (filter_var($body, FILTER_VALIDATE_URL) || $body === $mediaUrl)) {
+                    $body = null;
+                } elseif (empty($body)) {
+                    $body = null;
+                }
             }
         }
 
@@ -133,8 +140,6 @@ class KapsoWebhookController extends Controller
                 $body = ($loc['latitude'] ?? '').', '.($loc['longitude'] ?? '');
             }
         }
-
-        $mediaUrl = $kapso['media_url'] ?? null;
 
         Message::updateOrCreate(
             ['kapso_message_id' => $msg['id'] ?? null],
@@ -168,13 +173,21 @@ class KapsoWebhookController extends Controller
         if (! $body && isset($msg['text']['body'])) {
             $body = $msg['text']['body'];
         }
+        $mediaUrl = $kapso['media_url'] ?? null;
+        $type = $msg['type'] ?? 'text';
+
+        if (in_array($type, ['image', 'video', 'document', 'audio', 'sticker'])) {
+            if (is_string($body) && (filter_var($body, FILTER_VALIDATE_URL) || $body === $mediaUrl)) {
+                $body = null;
+            }
+        }
 
         Message::updateOrCreate(
             ['kapso_message_id' => $msg['id'] ?? null],
             [
                 'conversation_id' => $conversation->id,
                 'direction' => 'outbound',
-                'type' => $msg['type'] ?? 'text',
+                'type' => $type,
                 'body' => $body,
                 'status' => $kapso['status'] ?? 'sent',
                 'raw_payload' => $data,
