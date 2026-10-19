@@ -58,8 +58,14 @@ class ConversationController extends Controller
         // Handle file upload
         $mediaUrl = $data['media_url'] ?? null;
         if ($request->hasFile('media_file')) {
-            $path = $request->file('media_file')->store('media', 'public');
-            $mediaUrl = asset('storage/' . $path);
+            $dir = public_path('uploads');
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $file = $request->file('media_file');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move($dir, $filename);
+            $mediaUrl = asset('uploads/' . $filename);
         }
 
         // Build Kapso payload based on type
