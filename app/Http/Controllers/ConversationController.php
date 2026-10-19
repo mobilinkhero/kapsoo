@@ -32,10 +32,7 @@ class ConversationController extends Controller
 
     public function show(Conversation $conversation)
     {
-        $conversation->load('contact', 'messages');
-        $conversation->update(['unread_count' => 0]);
-
-        return view('conversations.show', compact('conversation'));
+        return redirect()->route('conversations.index', ['c' => $conversation->id]);
     }
 
     public function sendMessage(Request $request, Conversation $conversation, KapsoService $kapso)
