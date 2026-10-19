@@ -113,6 +113,23 @@ class KapsoWebhookController extends Controller
             $body = $msg['text']['body'];
         }
 
+        // Extract caption for media messages
+        if (in_array($msg['type'] ?? '', ['image', 'video', 'document', 'audio', 'sticker'])) {
+            $typeData = $kapso['message_type_data'] ?? [];
+            if (!empty($typeData['caption'])) {
+                $body = $typeData['caption'];
+            } elseif (empty($body)) {
+                $body = null;
+            }
+        }
+
+        // Location messages
+        if (($msg['type'] ?? '') === 'location') {
+            $loc = $msg['location'] ?? [];
+            $body = trim(($loc['name'] ?? '') . ' ' . ($loc['address'] ?? ''));
+            if (empty($body)) $body = ($loc['latitude'] ?? '') . ', ' . ($loc['longitude'] ?? '');
+        }
+
         $mediaUrl = $kapso['media_url'] ?? null;
 
         Message::updateOrCreate(

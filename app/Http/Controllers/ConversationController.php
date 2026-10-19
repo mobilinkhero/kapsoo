@@ -30,15 +30,68 @@ class ConversationController extends Controller
     public function sendMessage(Request $request, Conversation $conversation, KapsoService $kapso)
     {
         $data = $request->validate([
-            'body' => 'required|string|max:4096',
+            'type' => 'required|string|in:text,image,video,audio,document,location,sticker',
+            'body' => 'nullable|string|max:4096',
+            'media_url' => 'nullable|url',
+            'caption' => 'nullable|string|max:1024',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'location_name' => 'nullable|string|max:255',
+            'location_address' => 'nullable|string|max:500',
         ]);
 
         $contact = $conversation->contact;
+        $type = $data['type'];
+
+        // Build Kapso payload based on type
+        $payload = [];
+        $body = $data['body'] ?? null;
+        $mediaUrl = $data['media_url'] ?? null;
+
+        switch ($type) {
+            case 'text':
+                if (empty($body)) {
+                    return redirect()->back()->with('error', 'Text body is required.');
+                }
+                $payload = ['text' => ['body' => $body]];
+                break;
+            case 'image':
+            case 'video':
+            case 'audio':
+            case 'document':
+            case 'sticker':
+                if (empty($mediaUrl)) {
+                    return redirect()->back()->with('error', 'Media URL is required.');
+                }
+                $media = ['link' => $mediaUrl];
+                if (!empty($data['caption'])) {
+                    $media['caption'] = $data['caption'];
+                }
+                if ($type === 'document' && !empty($data['body'])) {
+                    $media['filename'] = $data['body'];
+                }
+                $payload = [$type => $media];
+                $body = $data['caption'] ?? $data['body'] ?? null;
+                break;
+            case 'location':
+                if (empty($data['latitude']) || empty($data['longitude'])) {
+                    return redirect()->back()->with('error', 'Latitude and longitude are required.');
+                }
+                $loc = [
+                    'latitude' => (string) $data['latitude'],
+                    'longitude' => (string) $data['longitude'],
+                ];
+                if (!empty($data['location_name'])) $loc['name'] = $data['location_name'];
+                if (!empty($data['location_address'])) $loc['address'] = $data['location_address'];
+                $payload = ['location' => $loc];
+                $body = $data['location_name'] ?? 'Location';
+                break;
+        }
 
         try {
-            $result = $kapso->sendMessage($contact->phone, $data['body']);
+            $result = $kapso->send($contact->phone, $type, $payload);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Kapso sendMessage exception', ['error' => $e->getMessage()]);
+            \Illuminate\Support\Facades\Log::error('Kapso send exception', ['error' => $e->getMessage()]);
             return redirect()->route('conversations.show', $conversation)->with('error', 'Failed to send: ' . $e->getMessage());
         }
 
@@ -46,7 +99,7 @@ class ConversationController extends Controller
 
         if (!$messageId) {
             $error = $result['error']['message'] ?? $result['error'] ?? json_encode($result);
-            \Illuminate\Support\Facades\Log::error('Kapso sendMessage failed', ['response' => $result, 'to' => $contact->phone]);
+            \Illuminate\Support\Facades\Log::error('Kapso send failed', ['response' => $result, 'to' => $contact->phone]);
             return redirect()->route('conversations.show', $conversation)->with('error', 'Kapso rejected the message: ' . (is_string($error) ? $error : json_encode($error)));
         }
 
@@ -54,8 +107,9 @@ class ConversationController extends Controller
             'conversation_id' => $conversation->id,
             'kapso_message_id' => $messageId,
             'direction' => 'outbound',
-            'type' => 'text',
-            'body' => $data['body'],
+            'type' => $type,
+            'body' => $body,
+            'media_url' => $mediaUrl,
             'status' => 'sent',
             'sent_at' => now(),
         ]);
@@ -81,7 +135,9 @@ class ConversationController extends Controller
             ->map(fn ($m) => [
                 'id' => $m->id,
                 'direction' => $m->direction,
+                'type' => $m->type,
                 'body' => $m->body,
+                'media_url' => $m->media_url,
                 'status' => $m->status,
                 'time' => $m->sent_at?->format('H:i'),
             ]);

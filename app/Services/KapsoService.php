@@ -60,21 +60,28 @@ class KapsoService
 
     public function sendMessage(string $to, string $text): array
     {
-        $response = $this->client()->post("/{$this->phoneNumberId}/messages", [
+        return $this->send($to, 'text', ['text' => ['body' => $text]]);
+    }
+
+    public function send(string $to, string $type, array $data = []): array
+    {
+        $payload = array_merge([
             'messaging_product' => 'whatsapp',
             'to' => $to,
-            'type' => 'text',
-            'text' => ['body' => $text],
-        ]);
+            'type' => $type,
+        ], $data);
+
+        $response = $this->client()->post("/{$this->phoneNumberId}/messages", $payload);
 
         if ($response->failed()) {
             Log::error('Kapso sendMessage failed', [
+                'type' => $type,
                 'status' => $response->status(),
                 'body' => $response->body(),
                 'url' => $this->baseUrl,
             ]);
         } else {
-            Log::info('Kapso sendMessage success', ['response' => $response->json()]);
+            Log::info('Kapso sendMessage success', ['type' => $type, 'response' => $response->json()]);
         }
 
         return $response->json() ?? [];
