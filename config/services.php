@@ -18,6 +18,12 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    'kapso' => [
+        'base_url' => env('KAPSO_BASE_URL', 'https://api.kapso.ai'),
+        'api_key' => env('KAPSO_API_KEY'),
+        'phone_number_id' => env('KAPSO_PHONE_NUMBER_ID'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],
