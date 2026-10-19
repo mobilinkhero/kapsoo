@@ -15,17 +15,23 @@ class KapsoWebhookController extends Controller
         $event = $request->header('X-Webhook-Event');
         $payload = $request->all();
 
+        Log::info('Kapso webhook received', [
+            'event' => $event,
+            'headers' => $request->headers->all(),
+            'payload' => $payload,
+        ]);
+
         // Handle batched deliveries
         if (isset($payload['data']) && is_array($payload['data'])) {
             foreach ($payload['data'] as $item) {
                 $this->processEvent($event, $item);
             }
-            return response()->json(['ok' => true]);
+            return response('OK', 200);
         }
 
         $this->processEvent($event, $payload);
 
-        return response()->json(['ok' => true]);
+        return response('OK', 200);
     }
 
     protected function processEvent(?string $event, array $data): void
