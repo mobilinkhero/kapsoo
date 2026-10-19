@@ -3,6 +3,7 @@
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BotTestController;
+use App\Http\Controllers\ChatTestController;
 use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ConversationController;
@@ -44,6 +45,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/bot-test', [BotTestController::class, 'index'])->name('bot-test.index');
     Route::post('/bot-test/run', [BotTestController::class, 'run'])->name('bot-test.run');
+
+    Route::get('/chat-test', [ChatTestController::class, 'index'])->name('chat-test.index');
+    Route::post('/chat-test/send', [ChatTestController::class, 'send'])->name('chat-test.send');
+    Route::post('/chat-test/reset', [ChatTestController::class, 'reset'])->name('chat-test.reset');
 
     Route::resource('knowledge', KnowledgeDocumentController::class);
     Route::post('knowledge/import-url', [KnowledgeDocumentController::class, 'importUrl'])->name('knowledge.importUrl');
