@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Services\KapsoService;
 use Illuminate\Http\Request;
 
 class SettingController extends Controller
@@ -11,6 +12,11 @@ class SettingController extends Controller
     {
         $settings = Setting::pluck('value', 'key')->toArray();
         return view('settings.index', compact('settings'));
+    }
+
+    public function test(KapsoService $kapso)
+    {
+        return response()->json($kapso->testConnection());
     }
 
     public function update(Request $request)

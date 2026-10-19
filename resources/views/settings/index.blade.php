@@ -6,7 +6,7 @@
         <h2 class="text-2xl font-bold text-slate-900">Settings</h2>
         <p class="text-sm text-slate-500 mt-1">Configure your Kapso integration</p>
     </div>
-    <form method="POST" action="{{ route('settings.update') }}" class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+    <form method="POST" action="{{ route('settings.update') }}" class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5" x-data="settingsPage()">
         @csrf
         <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white">
@@ -33,7 +33,42 @@
             <p class="text-xs text-slate-500">Webhook URL to configure in Kapso:</p>
             <code class="text-xs text-emerald-700 font-mono break-all">{{ url('/api/webhooks/kapso') }}</code>
         </div>
-        <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:from-emerald-700 hover:to-teal-700 transition shadow-lg shadow-emerald-500/25">Save Settings</button>
+        <div class="flex flex-wrap gap-3">
+            <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold hover:from-emerald-700 hover:to-teal-700 transition shadow-lg shadow-emerald-500/25">Save Settings</button>
+            <button type="button" @click="test()" :disabled="testing" class="px-6 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition shadow-sm disabled:opacity-50">
+                <span x-text="testing ? 'Testing...' : 'Test Connection'"></span>
+            </button>
+        </div>
+        <div x-show="result" x-transition class="rounded-xl px-4 py-3 text-sm" :class="result?.ok ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'">
+            <p class="font-semibold" x-text="result?.ok ? 'Connection successful' : 'Connection failed'"></p>
+            <pre class="mt-2 text-xs overflow-x-auto whitespace-pre-wrap" x-text="JSON.stringify(result?.body, null, 2)"></pre>
+        </div>
     </form>
 </div>
+<script>
+function settingsPage() {
+    return {
+        testing: false,
+        result: null,
+        async test() {
+            this.testing = true;
+            this.result = null;
+            try {
+                const res = await fetch('{{ route('settings.test') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+                this.result = await res.json();
+            } catch (e) {
+                this.result = { ok: false, body: { error: e.message } };
+            }
+            this.testing = false;
+        }
+    }
+}
+</script>
 @endsection

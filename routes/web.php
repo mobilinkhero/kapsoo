@@ -32,6 +32,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
+    Route::post('/settings/test', [SettingController::class, 'test'])->name('settings.test');
 
     Route::get('/integration', [IntegrationController::class, 'index'])->name('integration.index');
 

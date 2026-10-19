@@ -112,6 +112,26 @@ class KapsoService
         return $response->json('data') ?? [];
     }
 
+    public function testConnection(): array
+    {
+        if (!$this->isConfigured()) {
+            return ['ok' => false, 'status' => 0, 'body' => ['error' => 'API key or phone number ID missing']];
+        }
+
+        $response = $this->client()->get("/{$this->phoneNumberId}");
+
+        $body = $response->json();
+        if (!is_array($body)) {
+            $body = ['raw' => $response->body()];
+        }
+
+        return [
+            'ok' => $response->successful(),
+            'status' => $response->status(),
+            'body' => $body,
+        ];
+    }
+
     public function markAsRead(string $messageId): array
     {
         $response = $this->client()->post("/{$this->phoneNumberId}/messages", [
