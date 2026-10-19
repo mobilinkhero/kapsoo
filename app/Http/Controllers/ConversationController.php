@@ -16,7 +16,18 @@ class ConversationController extends Controller
             ->orderByDesc('last_message_at')
             ->paginate(20);
 
-        return view('conversations.index', compact('conversations'));
+        $selected = null;
+        if ($request->filled('c')) {
+            $selected = Conversation::with('contact', 'messages')->find($request->c);
+        } elseif ($conversations->count()) {
+            $selected = Conversation::with('contact', 'messages')->find($conversations->first()->id);
+        }
+
+        if ($selected) {
+            $selected->update(['unread_count' => 0]);
+        }
+
+        return view('conversations.inbox', compact('conversations', 'selected'));
     }
 
     public function show(Conversation $conversation)
@@ -33,6 +44,7 @@ class ConversationController extends Controller
             'type' => 'required|string|in:text,image,video,audio,document,location,sticker',
             'body' => 'nullable|string|max:4096',
             'media_url' => 'nullable|url',
+            'media_file' => 'nullable|file|max:16384',
             'caption' => 'nullable|string|max:1024',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
@@ -43,10 +55,16 @@ class ConversationController extends Controller
         $contact = $conversation->contact;
         $type = $data['type'];
 
+        // Handle file upload
+        $mediaUrl = $data['media_url'] ?? null;
+        if ($request->hasFile('media_file')) {
+            $path = $request->file('media_file')->store('media', 'public');
+            $mediaUrl = asset('storage/' . $path);
+        }
+
         // Build Kapso payload based on type
         $payload = [];
         $body = $data['body'] ?? null;
-        $mediaUrl = $data['media_url'] ?? null;
 
         switch ($type) {
             case 'text':
