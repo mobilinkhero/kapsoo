@@ -51,7 +51,40 @@
     <div class="rounded-2xl bg-slate-900 text-white p-6 shadow-xl">
         <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Your Webhook URL</p>
         <code class="block mt-2 text-emerald-400 font-mono text-sm break-all">{{ url('/api/webhooks/kapso') }}</code>
-        <p class="text-xs text-slate-400 mt-3">Use this URL in the Kapso dashboard webhook settings. The endpoint accepts POST requests with the X-Webhook-Event header.</p>
+        <p class="text-xs text-slate-400 mt-3">Use this URL in the Kapso dashboard webhook settings. The endpoint accepts POST requests with the X-Webhook-Event header and returns 200 OK.</p>
+    </div>
+
+    <!-- How to register webhook -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <h3 class="font-semibold text-slate-900">How to register the webhook in Kapso</h3>
+        <p class="text-sm text-slate-600">Important: message events are sent to <strong>phone-number webhooks</strong>, not project webhooks. Project webhooks only receive connection/workflow events.</p>
+        <div class="space-y-2 text-sm text-slate-600">
+            <p class="font-medium text-slate-800">Option A — Kapso Dashboard:</p>
+            <ol class="list-decimal list-inside space-y-1 ml-2">
+                <li>Open your Kapso project → WhatsApp → select your phone number → Edit.</li>
+                <li>Find "Webhook destination URL" / "Kapso webhooks".</li>
+                <li>Paste your webhook URL above.</li>
+                <li>Select events: <code class="bg-slate-100 px-1 rounded">whatsapp.message.received</code>, <code class="bg-slate-100 px-1 rounded">whatsapp.message.sent</code>, <code class="bg-slate-100 px-1 rounded">whatsapp.message.delivered</code>, <code class="bg-slate-100 px-1 rounded">whatsapp.message.read</code>, <code class="bg-slate-100 px-1 rounded">whatsapp.message.failed</code>, <code class="bg-slate-100 px-1 rounded">whatsapp.conversation.created</code>, <code class="bg-slate-100 px-1 rounded">whatsapp.conversation.ended</code>.</li>
+                <li>Save. Send a test message to your WhatsApp number — it should appear in the Inbox.</li>
+            </ol>
+        </div>
+        <div class="space-y-2 text-sm text-slate-600">
+            <p class="font-medium text-slate-800">Option B — Kapso API (curl):</p>
+            <pre class="bg-slate-900 text-emerald-300 text-xs p-4 rounded-xl overflow-x-auto">curl -X POST "https://api.kapso.ai/platform/v1/whatsapp/phone_numbers/YOUR_PHONE_NUMBER_ID/webhooks" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "whatsapp_webhook": {
+      "kind": "kapso",
+      "url": "{{ url('/api/webhooks/kapso') }}",
+      "events": ["whatsapp.message.received","whatsapp.message.sent","whatsapp.message.delivered","whatsapp.message.read","whatsapp.message.failed","whatsapp.conversation.created","whatsapp.conversation.ended"],
+      "secret_key": "your-secret-key"
+    }
+  }'</pre>
+        </div>
+        <div class="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+            <strong>Why "nothing in return"?</strong> Kapso webhooks only fire when real events happen (e.g., a message is received). The dashboard's test button may just check reachability. Make sure you selected the events above and that your number is connected. Also verify the URL is HTTPS and returns 200 (it does — tested).
+        </div>
     </div>
 
     <!-- How it works -->
