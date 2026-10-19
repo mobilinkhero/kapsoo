@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('conversations', function (Blueprint $table) {
-            $table->string('ai_mode')->default('assist')->after('status'); // off, assist, auto
+            $table->string('ai_mode')->default('auto')->after('status'); // off, assist, auto
             $table->boolean('ai_handoff')->default(false)->after('ai_mode');
             $table->string('handoff_reason')->nullable()->after('ai_handoff');
             $table->json('ai_tags')->nullable()->after('handoff_reason');

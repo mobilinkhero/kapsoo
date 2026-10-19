@@ -108,8 +108,9 @@ class AiService
             return;
         }
 
-        // Auto mode: send reply
-        if ($conversation->ai_mode === 'auto' && ! empty($result['reply'])) {
+        // Auto-reply: send the reply for any active AI mode (assist or auto) so every
+        // incoming message gets an answer. In assist mode the suggestion is also kept.
+        if (in_array($conversation->ai_mode, ['assist', 'auto'], true) && ! empty($result['reply'])) {
             if ($simulate) {
                 Message::create([
                     'conversation_id' => $conversation->id,
@@ -144,7 +145,7 @@ class AiService
         $systemPrompt = $this->setting('ai_system_prompt', $this->defaultSystemPrompt());
 
         // RAG context
-        $ragResult = $this->kb->search($message->body ?? '', 5, ['hyde' => false]);
+        $ragResult = $this->kb->search($message->body ?? '', 5, ['hyde' => false, 'expand' => false]);
         $ragChunks = $ragResult['chunks'] ?? [];
         $ragContext = empty($ragChunks) ? '' : "Relevant knowledge base:\n- ".implode("\n- ", $ragChunks);
 

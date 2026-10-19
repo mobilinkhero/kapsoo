@@ -49,7 +49,7 @@ class BotTestController extends Controller
             $conversation = Conversation::create([
                 'contact_id' => $contact->id,
                 'status' => 'open',
-                'ai_mode' => $data['mode'],
+                'ai_mode' => $data['mode'] ?? 'auto',
             ]);
         } else {
             $conversation->update(['ai_mode' => $data['mode'], 'ai_handoff' => false, 'handoff_reason' => null]);

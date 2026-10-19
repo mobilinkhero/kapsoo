@@ -145,6 +145,9 @@ class KapsoWebhookController extends Controller
 
         $conversation->phone_number_id = $data['phone_number_id'] ?? $conv['phone_number_id'] ?? $conversation->phone_number_id;
         $conversation->status = $conv['status'] ?? $conversation->status ?? 'active';
+        if (empty($conversation->ai_mode)) {
+            $conversation->ai_mode = 'auto';
+        }
         $conversation->last_message_at = now();
         $conversation->save();
 
