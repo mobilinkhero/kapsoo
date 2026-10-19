@@ -7,6 +7,7 @@ use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\AuthController;
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -30,4 +31,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
+
+    Route::get('/integration', [IntegrationController::class, 'index'])->name('integration.index');
 });
