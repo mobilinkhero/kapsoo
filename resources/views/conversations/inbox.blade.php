@@ -253,6 +253,15 @@
             </select>
             <span id="waiHandoffBadge" class="hidden text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700">Handoff</span>
             <div class="wai-head-actions">
+                @if($selected)
+                <form method="POST" action="{{ route('conversations.destroy', $selected) }}" onsubmit="return confirm('Delete this entire chat and all its messages? This cannot be undone.');" style="display:inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" title="Delete chat" style="background:transparent;border:0;padding:3px;color:#c0392b;cursor:pointer;display:flex;">
+                        <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </form>
+                @endif
                 <button type="button" title="Search in chat">
                     <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </button>

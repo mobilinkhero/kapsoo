@@ -235,6 +235,19 @@ class ConversationController extends Controller
         ];
     }
 
+    public function destroy(Conversation $conversation)
+    {
+        $contact = $conversation->contact;
+        $conversation->delete();
+
+        if ($contact && $contact->conversations()->count() === 0) {
+            $contact->metadata = null;
+            $contact->save();
+        }
+
+        return redirect()->route('conversations.index')->with('success', 'Chat deleted.');
+    }
+
     public function poll(Conversation $conversation, Request $request)
     {
         $afterId = (int) $request->get('after_id', 0);
