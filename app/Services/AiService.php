@@ -468,58 +468,41 @@ class AiService
     {
         $accounts = [];
         $text = '';
+
+        // Prefer the dedicated "Payment Details" document (exact, no stray chunks)
         try {
-            $search = $this->kb->search('payment details account number name', 4, ['expand' => false, 'hyde' => false]);
-            $chunks = $search['chunks'] ?? [];
-            $text = implode("\n", $chunks);
+            $doc = \App\Models\KnowledgeDocument::where('title', 'like', '%payment%')
+                ->where('content', 'like', '%Account Name%')
+                ->first();
+            if ($doc) {
+                $text = (string) $doc->content;
+            } else {
+                $search = $this->kb->search('payment details account number name', 3, ['expand' => false, 'hyde' => false]);
+                $text = implode("\n", $search['chunks'] ?? []);
+            }
         } catch (\Throwable $e) {
             // fall back to settings
         }
 
-        $lines = preg_split('/\r?\n/', $text);
-        $currentMethod = null;
-        $currentName = null;
-        foreach ($lines as $line) {
-            if (preg_match('/\*\*\s*\d+\.\s*([A-Za-z]+)/', $line, $m)) {
-                $currentMethod = trim($m[1]);
-                $currentName = null;
-
-                continue;
-            }
-            if (preg_match('/Account Name\s*[:\-]?\s*(.+)/i', $line, $m)) {
-                $currentName = trim($m[1], ' *');
-
-                continue;
-            }
-            if (preg_match('/Mobile Number\s*[:\-]?\s*([0-9]{10,13})/i', $line, $m)) {
+        // Parse account blocks: "**1. Easypaisa** ... Account Name: X ... Mobile Number: Y"
+        if (preg_match_all('/\*\*\s*\d+\.\s*([A-Za-z]+)\*\*.*?Account Name\s*[:\-\*]*\s*([A-Za-z ]{2,40}?)\s*(?:\*{1,2}|Mobile|After|\n|-|$).*?Mobile Number\s*[:\-\*]*\s*([0-9]{10,13})/is', $text, $m, PREG_SET_ORDER)) {
+            foreach ($m as $match) {
                 $accounts[] = [
-                    'method' => $currentMethod,
-                    'name' => $currentName,
-                    'number' => trim($m[1]),
+                    'method' => trim($match[1]),
+                    'name' => trim($match[2], " *"),
+                    'number' => trim($match[3]),
                 ];
-                $currentName = null;
-
-                continue;
             }
         }
 
-        if (empty($accounts) && preg_match_all('/\b(03[0-9]{9})\b/', $text, $m)) {
-            foreach ($m[1] as $num) {
-                $accounts[] = ['method' => null, 'name' => null, 'number' => $num];
-            }
-        }
-        if (empty($accounts) && preg_match_all('/(?:number|account|phone)\s*[:\-]?\s*([0-9]{10,13})/i', $text, $m)) {
-            foreach ($m[1] as $num) {
-                $accounts[] = ['method' => null, 'name' => null, 'number' => $num];
-            }
-        }
-
-        if (preg_match_all('/Account Name\s*[:\-]?\s*(.+)/i', $text, $mn)) {
-            $names = array_map(fn ($n) => trim($n, ' *'), $mn[1]);
-            foreach ($accounts as $i => $a) {
-                if (empty($a['name']) && isset($names[$i])) {
-                    $accounts[$i]['name'] = $names[$i];
+        // Fallback: single-account format "Mobile Number: X"
+        if (empty($accounts)) {
+            if (preg_match('/Mobile Number\s*[:\-]?\s*([0-9]{10,13})/i', $text, $m)) {
+                $name = '';
+                if (preg_match('/Account Name\s*[:\-]?\s*([A-Za-z ]{2,40})/i', $text, $mn)) {
+                    $name = trim($mn[1], " *");
                 }
+                $accounts[] = ['method' => null, 'name' => $name, 'number' => trim($m[1])];
             }
         }
 
@@ -539,6 +522,7 @@ class AiService
             'name' => $first['name'] ?? '',
         ];
     }
+
 
     /** Account numbers the AI actually shared with this customer in the conversation. */
     protected function getSharedPaymentAccountsFromConversation(Conversation $conversation): array
