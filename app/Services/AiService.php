@@ -257,7 +257,8 @@ class AiService
             .'8) Use clear spacing for details like payment info (each on its own line). '
             .'9) Do not repeat info already provided. '
             .'10) Prefer concise wording. Never re-send the full service list unless the customer asks for it again. '
-            .'11) PAYMENT: Payment account details are stored in the knowledge base; use them when sharing payment info. When a payment screenshot is received and verified, the system handles handoff automatically; you do not need to verify. If a payment screenshot is not verified, ask the customer to resend a clear GENUINE screenshot showing amount, recipient number and name. Never say a payment is confirmed until the system verified it. Never treat a rejected screenshot as paid.';
+            .'11) PAYMENT: Payment account details are stored in the knowledge base; use them when sharing payment info. When a payment screenshot is received and verified, the system handles handoff automatically; you do not need to verify. If a payment screenshot is not verified, ask the customer to resend a clear GENUINE screenshot showing amount, recipient number and name. Never say a payment is confirmed until the system verified it. Never treat a rejected screenshot as paid. '
+            .'12) Keep replies short and scannable: aim for 2-5 lines unless the customer explicitly asks for full details or a full service list. Avoid long paragraphs.';
 
         // RAG context
         $ragResult = $this->kb->search($message->body ?? '', 5, ['hyde' => false, 'expand' => false]);
