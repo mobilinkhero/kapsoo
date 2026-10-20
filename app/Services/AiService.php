@@ -162,7 +162,16 @@ class AiService
     {
         $systemPrompt = $this->setting('ai_system_prompt', $this->defaultSystemPrompt());
         // Always enforce WhatsApp-friendly formatting regardless of custom prompt
-        $systemPrompt .= "\n\nFORMATTING RULES (WhatsApp): Write replies in multiple short lines using newlines, not one long paragraph. Keep under ~8 lines. Use emojis sparingly and only where helpful. Ask as few questions as possible. Use clear spacing for details (e.g. payment info on separate lines). Do not repeat info already provided.";
+        $systemPrompt .= "\n\nFORMATTING RULES (WhatsApp): "
+            ."1) Write replies in multiple short lines using newlines, not one long paragraph. "
+            ."2) Keep replies SHORT: ideally 3-5 lines max; never exceed 8 lines. "
+            ."3) On the FIRST message (no prior history), keep it very brief: a short greeting by name + one line intro + one question. Do NOT list all services at once. "
+            ."4) When asked about services, do not dump the full list; mention 2-3 key ones compactly or ask which service they need. "
+            ."5) Use emojis sparingly and only where genuinely helpful (greetings, confirmations, payment). Never in every line. "
+            ."6) Ask as few questions as possible; only ask what is strictly needed. "
+            ."7) Use clear spacing for details like payment info (each on its own line). "
+            ."8) Do not repeat info already provided. "
+            ."9) Prefer concise wording over completeness.";
 
         // RAG context
         $ragResult = $this->kb->search($message->body ?? '', 5, ['hyde' => false, 'expand' => false]);
@@ -225,7 +234,7 @@ class AiService
 
         $isFirstMessage = $chatHistory === [];
         $instruction = "Respond ONLY with a valid JSON object (no markdown) with keys:\n"
-            ."- reply: string, the suggested reply to send to the customer. Format it for WhatsApp: use newlines (\\n) to split into short lines, keep it concise (under ~8 lines), use emojis sparingly and only where helpful, and ask as few questions as possible. Use clear spacing for details like payment info. Empty string if no reply needed.\n"
+            ."- reply: string, the suggested reply to send to the customer. Format for WhatsApp: short (3-5 lines, max 8), use newlines, emojis sparingly, ask minimal questions, clear spacing for details. On first message keep very brief (greeting + one intro line + one question) and do not list all services. Empty string if no reply needed.\n"
             ."- tags: array of short intent/sentiment tags (e.g. interested, pricing, complaint, hot_lead, support, greeting).\n"
             ."- confidence: number 0-1 indicating how confident you are in the reply.\n"
             ."- handoff: boolean, true if a human agent should take over.\n"
@@ -257,6 +266,10 @@ class AiService
         // Normalize: collapse 3+ newlines to 2, trim each line
         $reply = preg_replace("/\n{3,}/", "\n\n", $reply);
         $lines = array_map('trim', explode("\n", $reply));
+        // Safety: cap at 10 lines to avoid overly long messages
+        if (count($lines) > 10) {
+            $lines = array_slice($lines, 0, 10);
+        }
         $reply = implode("\n", $lines);
 
         return [
