@@ -112,5 +112,52 @@
             @endif
         </form>
     </div>
+    {{-- Follow-up card --}}
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+        <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+                <h3 class="font-semibold text-slate-900">Follow-up Messages</h3>
+                <p class="text-xs text-slate-500">Re-engage stale leads and nudge them to purchase</p>
+            </div>
+        </div>
+        <form method="POST" action="{{ route('settings.update') }}" class="space-y-4">
+            @csrf
+            <input type="hidden" name="section" value="followup">
+            <label class="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" name="ai_followup_enabled" value="1" {{ ($settings['ai_followup_enabled'] ?? '1') === '1' ? 'checked' : '' }} class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                Enable automatic follow-ups
+            </label>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Hours of inactivity before follow-up</label>
+                    <input name="ai_followup_hours" type="number" min="1" max="720" value="{{ old('ai_followup_hours', $settings['ai_followup_hours'] ?? '24') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Discount offered (%)</label>
+                    <input name="ai_followup_discount" type="number" min="0" max="90" value="{{ old('ai_followup_discount', $settings['ai_followup_discount'] ?? '10') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Kapso template name (optional, for &gt;24h window)</label>
+                <input name="ai_followup_template" value="{{ old('ai_followup_template', $settings['ai_followup_template'] ?? '') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition" placeholder="followup_template_name">
+                <p class="text-xs text-slate-500 mt-1">Leave empty to send the message below as free text (works within the 24h window).</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Follow-up message</label>
+                <textarea name="ai_followup_message" rows="4" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition">{{ old('ai_followup_message', $settings['ai_followup_message'] ?? "Hi {name}! 😊 Just checking in — you were interested in {service}. We'd love to help you get it done. As a special offer, enjoy {discount}% off your order today! Reply to claim your discount. 🎁") }}</textarea>
+                <p class="text-xs text-slate-500 mt-1">Placeholders: <code>{name}</code> customer name, <code>{service}</code> what they asked about, <code>{discount}</code> discount %, <code>{price}</code> quoted price, <code>{phone}</code> phone number.</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold hover:from-amber-600 hover:to-orange-700 transition shadow-lg shadow-amber-500/25">Save Follow-up</button>
+            </div>
+            @if(session('saved_section') === 'followup' && session('success'))
+                <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 px-4 py-3 text-sm">{{ session('success') }}</div>
+            @endif
+        </form>
+    </div>
+
 </div>
 @endsection

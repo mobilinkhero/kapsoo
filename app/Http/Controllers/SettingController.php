@@ -43,6 +43,23 @@ class SettingController extends Controller
             }
         }
 
+        if ($section === 'followup' || $section === 'all') {
+            $data = $request->validate([
+                'ai_followup_enabled' => 'nullable|in:0,1',
+                'ai_followup_hours' => 'nullable|integer|min:1|max:720',
+                'ai_followup_discount' => 'nullable|integer|min:0|max:90',
+                'ai_followup_template' => 'nullable|string|max:100',
+                'ai_followup_message' => 'nullable|string|max:2000',
+            ]);
+            // checkbox handling
+            if (! $request->has('ai_followup_enabled')) {
+                $data['ai_followup_enabled'] = '0';
+            }
+            foreach ($data as $key => $value) {
+                Setting::updateOrCreate(['key' => $key], ['value' => $value]);
+            }
+        }
+
         if ($section === 'payment' || $section === 'all') {
             $data = $request->validate([
                 'payment_number' => 'nullable|string|max:50',
