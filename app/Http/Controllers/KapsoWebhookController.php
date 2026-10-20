@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\ProcessAiForMessage;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Services\AiService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -223,9 +223,17 @@ class KapsoWebhookController extends Controller
         $conversation->last_inbound_at = now();
         $conversation->save();
 
-        // Trigger AI processing for inbound messages
+        // Trigger AI processing for inbound messages (synchronously, no queue worker needed)
         if ($saved) {
-            ProcessAiForMessage::dispatch($saved->id);
+            try {
+                $ai = app(AiService::class);
+                $ai->handleInbound($saved);
+            } catch (\Throwable $e) {
+                Log::error('AI processing failed in webhook', [
+                    'message_id' => $saved->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 
