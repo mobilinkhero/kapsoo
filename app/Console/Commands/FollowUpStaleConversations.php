@@ -86,18 +86,39 @@ class FollowUpStaleConversations extends Command
             }
             $transcriptText = implode("\n", $transcript);
 
+            // Derive the quoted price (if any) so we can state the discount in PKR
+            $priceNum = 0;
+            try {
+                $allOut = $conv->messages->where('direction', 'outbound')->pluck('body')->implode("\n");
+                if (preg_match_all('/([\d][\d,]{2,9})\s*(?:pkr|rs\.?|rupees)/i', $allOut, $m)) {
+                    $amounts = array_map(fn ($v) => (float) str_replace(',', '', $v), $m[1]);
+                    sort($amounts);
+                    if (! empty($amounts)) {
+                        $priceNum = (int) $amounts[0];
+                    }
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+            $discountAmount = $priceNum > 0 ? (int) round($priceNum * $discount / 100) : 0;
+            $finalPrice = $priceNum > 0 ? ($priceNum - $discountAmount) : 0;
+
+            $priceLine = $priceNum > 0
+                ? "Original price: {$priceNum} PKR. Discount: {$discount}% = {$discountAmount} PKR off. Final price after discount: {$finalPrice} PKR."
+                : "No specific price was quoted; offer a {$discount}% discount.";
+
             $system = 'You are a friendly WhatsApp sales assistant writing in simple Roman Urdu (Urdu written in English letters), like a real Pakistani salesperson. '
                 .'The customer has been inactive. Write ONE short follow-up message (4-6 lines) that converts them to buy: '
                 .'(1) warm greeting with their name, '
                 .'(2) remind them of exactly what they asked for and that it is ready/pending, '
                 .'(3) create gentle urgency (limited time / slots), '
-                .'(4) offer a '.$discount.'% discount as a real incentive to act now, '
+                .'(4) offer a discount of '.$discountAmount.' PKR (which is '.$discount.'% off, bringing the price to '.$finalPrice.' PKR) as a real incentive to act now, '
                 .'(5) end with ONE clear call-to-action asking them to reply "YES" or send payment. '
                 .'Use simple everyday Roman Urdu words (e.g. "Assalam o Alaikum", "aap", "kaam", "tayar", "discount", "jaldi"). '
                 .'EXAMPLE (follow this warm, converting style):\n'
                 ."Assalam o Alaikum Ahtisham! 😊\n"
                 ."Aapka SIM Owner Details ka kaam ready hai, bas payment pending hai.\n"
-                ."Aaj ke liye special offer: 10% discount sirf aaj ke liye!\n"
+                ."Aaj ke liye special offer: {$discountAmount} PKR discount (sirf aaj ke liye)!\n"
                 ."Kya aap abhi payment kar dein? Reply 'YES' aur main details bhej deta hoon. 🚀\n"
                 .'Do NOT repeat the full service list. Do NOT make up facts. Do NOT use English paragraphs. '
                 .'Respond with ONLY the message text, no JSON, no markdown.';
@@ -107,7 +128,7 @@ class FollowUpStaleConversations extends Command
 
             $messages = [
                 ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => "Customer name: ".($contact->name ?: 'unknown')."\nDiscount to offer: ".$discount."%\n\nConversation so far:\n".$transcriptText."\n\nWrite a converting Roman Urdu follow-up message now."],
+                ['role' => 'user', 'content' => "Customer name: ".($contact->name ?: 'unknown')."\n".$priceLine."\n\nConversation so far:\n".$transcriptText."\n\nWrite a converting Roman Urdu follow-up message now."],
             ];
 
             $res = $openai->chat($messages, ['temperature' => 0.6, 'max_tokens' => 200]);
