@@ -164,14 +164,15 @@ class AiService
         // Always enforce WhatsApp-friendly formatting regardless of custom prompt
         $systemPrompt .= "\n\nFORMATTING RULES (WhatsApp): "
             ."1) Write replies in multiple short lines using newlines, not one long paragraph. "
-            ."2) Keep replies concise but complete: include all requested info (e.g. full services list) when the customer asks, formatted with one item per line. "
-            ."3) On the FIRST message (no prior history), greet by name, then list EVERY available service (do not skip or summarize any), each on its own line, then ask which service they need. "
-            ."4) When listing services, put each service on its own line with a bullet/emoji, never in a single paragraph. "
-            ."5) Use emojis sparingly and only where genuinely helpful (greetings, confirmations, payment). Never in every line. "
-            ."6) Ask as few questions as possible; only ask what is strictly needed. "
-            ."7) Use clear spacing for details like payment info (each on its own line). "
-            ."8) Do not repeat info already provided. "
-            ."9) Prefer concise wording over completeness.";
+            ."2) Keep replies concise but complete: include all requested info when the customer asks, formatted one item per line. "
+            ."3) ONLY on the very first message (no prior history): greet by name, then list EVERY available service (do not skip/summarize), each on its own line, then ask which service they need. "
+            ."4) If there IS prior conversation history, do NOT repeat the greeting or the full service list. Answer the latest message directly and concisely, continuing the conversation. "
+            ."5) When listing services, put each service on its own line with a bullet/emoji, never in a single paragraph. "
+            ."6) Use emojis sparingly and only where genuinely helpful. Never in every line. "
+            ."7) Ask as few questions as possible; only ask what is strictly needed. "
+            ."8) Use clear spacing for details like payment info (each on its own line). "
+            ."9) Do not repeat info already provided. "
+            ."10) Prefer concise wording. Never re-send the full service list unless the customer asks for it again.";
 
         // RAG context
         $ragResult = $this->kb->search($message->body ?? '', 5, ['hyde' => false, 'expand' => false]);
@@ -234,15 +235,15 @@ class AiService
 
         $isFirstMessage = $chatHistory === [];
         $instruction = "Respond ONLY with a valid JSON object (no markdown) with keys:\n"
-            ."- reply: string, the suggested reply to send to the customer. Format for WhatsApp: use \\n for EACH line, emojis sparingly, clear spacing. On the FIRST message, greet by name, then list EVERY available service (do not omit any), each on its own line, then ask which they need. Empty string if no reply needed.\n"
-            ."EXAMPLE (follow this exact style, \\n between lines):\n"
-            ."Assalam-o-Alaikum Ahtisham! 😊\n\n"
+            ."- reply: string, the suggested reply to send to the customer. Format for WhatsApp: use \\n for EACH line, emojis sparingly, clear spacing. ONLY on the first message (no prior history): greet by name, list EVERY available service (do not omit any), each on its own line, then ask which they need. If there is prior history, do NOT repeat the greeting or service list; answer the latest message directly and concisely.\n"
+            ."EXAMPLE (follow this exact style, \\n between lines, single spacing):\n"
+            ."Assalam-o-Alaikum Ahtisham! 😊\n"
             ."Here are our services:\n"
             ."👉 SIM Owner Details\n"
             ."👉 All Active Numbers on CNIC\n"
             ."👉 CDR Call & SMS History\n"
             ."👉 IMEI Tracking\n"
-            ."👉 Family Tree\n\n"
+            ."👉 Family Tree\n"
             ."Which service do you need? 😊\n"
             ."- tags: array of short intent/sentiment tags (e.g. interested, pricing, complaint, hot_lead, support, greeting).\n"
             ."- confidence: number 0-1 indicating how confident you are in the reply.\n"
