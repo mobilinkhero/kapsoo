@@ -19,6 +19,8 @@ class FollowUpStaleConversations extends Command
     {
         $setting = fn ($key, $default = null) => Setting::where('key', $key)->value('value') ?? $default;
 
+        \Illuminate\Support\Facades\Log::info('ai:follow-up started', ['minutes_option' => $this->option('minutes')]);
+
         if (filter_var($setting('ai_followup_enabled', '1'), FILTER_VALIDATE_BOOLEAN) === false) {
             $this->info('Follow-ups disabled in settings.');
 
@@ -123,6 +125,7 @@ class FollowUpStaleConversations extends Command
         }
 
         $this->info("Followed up {$sent} conversation(s).");
+        \Illuminate\Support\Facades\Log::info('ai:follow-up finished', ['sent' => $sent]);
 
         return self::SUCCESS;
     }
