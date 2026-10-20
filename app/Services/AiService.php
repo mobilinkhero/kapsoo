@@ -234,7 +234,16 @@ class AiService
 
         $isFirstMessage = $chatHistory === [];
         $instruction = "Respond ONLY with a valid JSON object (no markdown) with keys:\n"
-            ."- reply: string, the suggested reply to send to the customer. Format for WhatsApp: use newlines for each line, emojis sparingly, clear spacing for details. On the FIRST message, greet by name, list ALL available services (one per line), then ask which they need. Keep payment/details info on separate lines. Empty string if no reply needed.\n"
+            ."- reply: string, the suggested reply to send to the customer. Format for WhatsApp: use \\n for EACH line, emojis sparingly, clear spacing. On the FIRST message, greet by name, list ALL available services (one per line), then ask which they need. Empty string if no reply needed.\n"
+            ."EXAMPLE (follow this exact style, \\n between lines):\n"
+            ."Assalam-o-Alaikum Ahtisham! 😊\n\n"
+            ."Here are our services:\n"
+            ."👉 SIM Owner Details\n"
+            ."👉 All Active Numbers on CNIC\n"
+            ."👉 CDR Call & SMS History\n"
+            ."👉 IMEI Tracking\n"
+            ."👉 Family Tree\n\n"
+            ."Which service do you need? 😊\n"
             ."- tags: array of short intent/sentiment tags (e.g. interested, pricing, complaint, hot_lead, support, greeting).\n"
             ."- confidence: number 0-1 indicating how confident you are in the reply.\n"
             ."- handoff: boolean, true if a human agent should take over.\n"
@@ -249,7 +258,7 @@ class AiService
         $messages[] = ['role' => 'system', 'content' => $instruction];
 
         $res = $this->openai->chat($messages, [
-            'temperature' => 0.3,
+            'temperature' => 0.2,
             'response_format' => ['type' => 'json_object'],
         ]);
 
