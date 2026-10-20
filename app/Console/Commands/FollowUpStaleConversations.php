@@ -111,9 +111,9 @@ class FollowUpStaleConversations extends Command
                 .'The customer was interested in a service but went silent. Message must: '
                 .'(1) greet by name, '
                 .'(2) ask if they still need that service, '
-                .'(3) mention the discounted price of '.$finalPrice.' PKR (was '.$priceNum.' PKR, '.$discountAmount.' PKR off) as an incentive, '
+                .'(3) mention ONLY the discounted price in PKR (e.g. "315 PKR" instead of "350 PKR"), do NOT mention any percentage, '
                 .'(4) end with a short question inviting them to reply. '
-                .'Keep it under 3-4 lines. No urgency hype. No long paragraphs. No service lists. No extra fluff. '
+                .'Keep it under 3 lines. No urgency hype. No long paragraphs. No service lists. No extra fluff. '
                 .'Respond with ONLY the message text, no JSON, no markdown.';
             if ($extra !== '') {
                 $system .= ' Additional instruction: '.$extra;
@@ -121,7 +121,7 @@ class FollowUpStaleConversations extends Command
 
             $messages = [
                 ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => "Customer name: ".($contact->name ?: 'unknown')."\n".$priceLine."\n\nConversation so far:\n".$transcriptText."\n\nWrite a converting Roman Urdu follow-up message now."],
+                ['role' => 'user', 'content' => "Customer name: ".($contact->name ?: 'unknown')."\nService they wanted: see conversation below.\nDiscounted price to mention: {$finalPrice} PKR (original {$priceNum} PKR, {$discountAmount} PKR off). Do NOT mention percentage.\n\nConversation so far:\n".$transcriptText."\n\nWrite a very short follow-up (2-3 lines). Ask if they still need the service. Mention only the discounted price in PKR. Nothing else."],
             ];
 
             $res = $openai->chat($messages, ['temperature' => 0.6, 'max_tokens' => 200]);
