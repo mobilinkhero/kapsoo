@@ -33,6 +33,7 @@ class AiService
         }
 
         $contact = $conversation->contact;
+        $paymentNotice = null;
 
         // Transcribe voice notes / describe images so the AI can handle them
         if (empty($message->body) && ! empty($message->media_url)) {
@@ -48,7 +49,8 @@ class AiService
                 if (is_array($payment) && ! empty($payment['is_payment'])) {
                     // Pull expected payment details from the knowledge base (flexible, editable)
                     $kbDetails = $this->getPaymentDetailsFromKb();
-                    $verification = $this->verifyPayment($payment, $kbDetails);
+                    $expectedAmounts = $this->getQuotedAmountsFromConversation($conversation);
+                    $verification = $this->verifyPayment($payment, $kbDetails, $expectedAmounts);
                     $message->update(['body' => '[Payment screenshot: '.json_encode($payment).']']);
                     $message->refresh();
 
@@ -94,9 +96,10 @@ class AiService
                         return;
                     }
 
-                    // Not verified -> store description, let AI ask to resend
-                    $desc = 'Payment screenshot received but not verified: '.$verification['reason'].'. Details: '.json_encode($payment);
-                    $message->update(['body' => '[Image: '.$desc.']']);
+                    // Not verified -> keep the AI replying: tell it exactly why the screenshot failed
+                    $paymentNotice = 'A payment screenshot was just received but it FAILED automatic verification: '.$verification['reason'].'. Expected recipient: '.$verification['expected_number'].' ('.$verification['expected_name'].'). '
+                        .'Do NOT set handoff=true and do NOT say the payment is confirmed. Reply by politely telling the customer the payment could not be verified, show the expected details, and ask them to send a clear, GENUINE screenshot from their payment app showing the amount, recipient number and name.';
+                    $message->update(['body' => '[Payment screenshot failed verification: '.$verification['reason'].']']);
                     $message->refresh();
                 } else {
                     $desc = $this->openai->visionDescribe($message->media_url);
@@ -109,7 +112,7 @@ class AiService
         }
 
         try {
-            $result = $this->analyze($conversation, $message, $contact);
+            $result = $this->analyze($conversation, $message, $contact, $paymentNotice ?? null);
         } catch (\Throwable $e) {
             Log::error('AI analyze failed', ['error' => $e->getMessage()]);
 
@@ -215,7 +218,7 @@ class AiService
         $this->updateContactMemory($contact, $conversation, $message, $result);
     }
 
-    protected function analyze(Conversation $conversation, Message $message, ?Contact $contact = null): array
+    protected function analyze(Conversation $conversation, Message $message, ?Contact $contact = null, ?string $paymentNotice = null): array
     {
         $systemPrompt = $this->setting('ai_system_prompt', $this->defaultSystemPrompt());
         // Always enforce WhatsApp-friendly formatting regardless of custom prompt
@@ -230,7 +233,7 @@ class AiService
             .'8) Use clear spacing for details like payment info (each on its own line). '
             .'9) Do not repeat info already provided. '
             .'10) Prefer concise wording. Never re-send the full service list unless the customer asks for it again. '
-            .'11) PAYMENT: Payment account details are stored in the knowledge base; use them when sharing payment info. When a payment screenshot is received and verified, the system handles handoff automatically; you do not need to verify. If a payment screenshot is not verified, ask the customer to resend a clear screenshot showing amount, recipient number and name.';
+            .'11) PAYMENT: Payment account details are stored in the knowledge base; use them when sharing payment info. When a payment screenshot is received and verified, the system handles handoff automatically; you do not need to verify. If a payment screenshot is not verified, ask the customer to resend a clear GENUINE screenshot showing amount, recipient number and name. Never say a payment is confirmed until the system verified it. Never treat a rejected screenshot as paid.';
 
         // RAG context
         $ragResult = $this->kb->search($message->body ?? '', 5, ['hyde' => false, 'expand' => false]);
@@ -315,6 +318,9 @@ class AiService
         }
 
         $messages[] = ['role' => 'system', 'content' => $instruction];
+        if (! empty($paymentNotice)) {
+            $messages[] = ['role' => 'system', 'content' => "IMPORTANT for THIS reply: {$paymentNotice}"];
+        }
 
         $res = $this->openai->chat($messages, [
             'temperature' => 0.2,
@@ -463,14 +469,21 @@ class AiService
         return $result;
     }
 
-    protected function verifyPayment(array $payment, array $kbDetails = []): array
+    protected function verifyPayment(array $payment, array $kbDetails = [], array $expectedAmounts = []): array
     {
         $expectedNumber = trim((string) ($kbDetails['number'] ?? $this->setting('payment_number', '03422339127')));
         $expectedName = trim((string) ($kbDetails['name'] ?? $this->setting('payment_name', 'Ameer Usman')));
+        $expectedNumber = preg_replace('/\s|-/', '', $expectedNumber);
 
         $recipientNumber = trim((string) ($payment['recipient_number'] ?? ''));
         $recipientName = trim((string) ($payment['recipient_name'] ?? ''));
         $amount = $payment['amount'] ?? null;
+        $currency = trim((string) ($payment['currency'] ?? ''));
+
+        // Fake / edited screenshot markers from Vision
+        if (! empty($payment['looks_forged'])) {
+            return ['ok' => false, 'reason' => 'Screenshot looks edited, fake or not a genuine app capture', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+        }
 
         // Normalize numbers: strip spaces/dashes
         $norm = fn ($v) => preg_replace('/\D/', '', (string) $v);
@@ -478,19 +491,74 @@ class AiService
         $recNum = $norm($recipientNumber);
 
         if (empty($recipientNumber) && empty($recipientName)) {
-            return ['ok' => false, 'reason' => 'No recipient details found in screenshot'];
+            return ['ok' => false, 'reason' => 'No recipient details found in screenshot', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
         }
         if ($expNum !== '' && $recNum !== '' && $expNum !== $recNum) {
-            return ['ok' => false, 'reason' => 'Recipient number mismatch (expected '.$expectedNumber.', got '.$recipientNumber.')'];
+            return ['ok' => false, 'reason' => 'Recipient number mismatch (expected '.$expectedNumber.', got '.$recipientNumber.')', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
         }
         if ($expectedName !== '' && $recipientName !== '' && stripos($recipientName, $expectedName) === false && stripos($expectedName, $recipientName) === false) {
-            return ['ok' => false, 'reason' => 'Recipient name mismatch (expected '.$expectedName.', got '.$recipientName.')'];
+            return ['ok' => false, 'reason' => 'Recipient name mismatch (expected '.$expectedName.', got '.$recipientName.')', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
         }
         if (empty($amount) || (float) $amount <= 0) {
-            return ['ok' => false, 'reason' => 'Payment amount not detected'];
+            return ['ok' => false, 'reason' => 'Payment amount not detected', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+        }
+        // We only deal in PKR; a foreign currency means fake or wrong account
+        if ($currency !== '' && ! preg_match('/pkr|rs|rupee|pakistan|₨/i', $currency)) {
+            return ['ok' => false, 'reason' => 'Currency looks wrong ('.$currency.'), only PKR is accepted', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+        }
+        $paidAmount = (float) str_replace(',', '', (string) $amount);
+        // Their services start at 1200 PKR, tiny values are classic fake receipts
+        if ($paidAmount > 0 && $paidAmount < 100) {
+            return ['ok' => false, 'reason' => 'Amount looks invalid ('.$amount.')', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+        }
+        // Cross-check the paid amount against prices quoted in this conversation
+        if (! empty($expectedAmounts)) {
+            $match = false;
+            foreach ($expectedAmounts as $exp) {
+                $exp = (float) $exp;
+                if (abs($paidAmount - $exp) <= max(1, $exp * 0.01)) {
+                    $match = true;
+                    break;
+                }
+            }
+            if (! $match) {
+                return ['ok' => false, 'reason' => 'Amount '.$amount.' does not match the quoted service price ('.implode(', ', array_map(fn ($e) => (string) $e, $expectedAmounts)).')', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+            }
         }
 
-        return ['ok' => true, 'reason' => 'amount '.($payment['currency'] ?? 'PKR').' '.$amount.' to '.$recipientNumber.' ('.$recipientName.')'];
+        return ['ok' => true, 'reason' => 'amount '.($currency ?: 'PKR').' '.$amount.' to '.$recipientNumber.' ('.$recipientName.')', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+    }
+
+    /** Prices (numbers) the AI quoted in this conversation, used to cross-check payment amounts. */
+    protected function getQuotedAmountsFromConversation(Conversation $conversation): array
+    {
+        $amounts = [];
+        try {
+            $text = $conversation->messages()
+                ->where('direction', 'outbound')
+                ->where('type', 'text')
+                ->orderByDesc('id')
+                ->limit(30)
+                ->pluck('body')
+                ->implode("\n");
+            foreach (
+                [
+                    '/(?:pkr|rs\.?|rupees)\s*[:\-]?\s*([\d][\d,]{2,9})/i',
+                    '/([\d][\d,]{2,9})\s*(?:pkr|rs\.?|rupees)/i',
+                    '/charges?\s*[:\-]?\s*([\d][\d,]{3,9})/i',
+                ] as $pattern
+            ) {
+                if (preg_match_all($pattern, $text, $m)) {
+                    foreach ($m[1] as $v) {
+                        $amounts[] = (float) str_replace(',', '', $v);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // No quoted amounts available; fall back to non-amount checks
+        }
+
+        return array_values(array_unique($amounts));
     }
 
     protected function setting(string $key, $default = null)

@@ -166,9 +166,10 @@ class OpenAIService
             return null;
         }
 
-        $prompt = 'Analyze this image. If it is a payment receipt/screenshot (JazzCash, bank transfer, etc.), extract these fields as JSON: '
+        $prompt = 'Analyze this image. If it is a payment receipt/screenshot (JazzCash, Easypaisa, bank app, etc.), extract these fields as JSON: '
             .'{ "is_payment": true/false, "amount": number or null, "currency": string or null, "recipient_number": string or null, '
-            .'"recipient_name": string or null, "transaction_id": string or null, "date": string or null, "notes": string or null }. '
+            .'"recipient_name": string or null, "transaction_id": string or null, "date": string or null, "app_name": string or null, '
+            .'"looks_forged": true/false (true if the screenshot shows signs of being edited, photoshopped, a template/mock, mismatched fonts, blur/smudge over key fields, impossible values, or text inconsistent with a real app UI), "notes": string or null }. '
             .'If it is NOT a payment screenshot, return {"is_payment": false}. Respond ONLY with valid JSON, no markdown.';
 
         $messages = [[
