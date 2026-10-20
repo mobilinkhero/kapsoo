@@ -50,14 +50,8 @@ class FollowUpStaleConversations extends Command
             ->whereNotNull('last_inbound_at')
             ->where('last_inbound_at', '<=', $cutoff)
             ->where(function ($q) {
-                $q->whereNull('followed_up_at')
-                    ->orWhereColumn('followed_up_at', '<', 'last_inbound_at');
-            })
-            ->where(function ($q) use ($minutes) {
-                // Cooldown: never follow up again within the configured delay
-                // after the last follow-up (prevents repeat sends / spam).
-                $q->whereNull('followed_up_at')
-                    ->orWhere('followed_up_at', '<=', now()->subMinutes($minutes));
+                // Send follow-up only ONCE per conversation, ever.
+                $q->whereNull('followed_up_at');
             })
             ->where('ai_mode', '!=', 'off')
             ->get();
