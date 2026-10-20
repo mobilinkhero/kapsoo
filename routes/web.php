@@ -6,6 +6,7 @@ use App\Http\Controllers\BotTestController;
 use App\Http\Controllers\ChatTestController;
 use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CronController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationController;
@@ -20,6 +21,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// External cron trigger (cron-job.org etc.) — protected by token
+Route::get('/cron/run', [CronController::class, 'run'])->name('cron.run');
 
 Route::middleware('auth')->group(function () {
     Route::get('/', fn () => redirect()->route('dashboard'));
