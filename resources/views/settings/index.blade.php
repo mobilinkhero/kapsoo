@@ -159,5 +159,33 @@
         </form>
     </div>
 
+    {{-- Notifications card --}}
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+        <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            </div>
+            <div>
+                <h3 class="font-semibold text-slate-900">Payment Notifications</h3>
+                <p class="text-xs text-slate-500">Get a WhatsApp alert (with screenshot) when a payment is verified</p>
+            </div>
+        </div>
+        <form method="POST" action="{{ route('settings.update') }}" class="space-y-4">
+            @csrf
+            <input type="hidden" name="section" value="notifications">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Notify phone number (with country code)</label>
+                <input name="ai_notify_number" value="{{ old('ai_notify_number', $settings['ai_notify_number'] ?? '') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition" placeholder="923001234567">
+                <p class="text-xs text-slate-500 mt-1">Leave empty to disable notifications. When a payment is verified, you'll receive the client number, service, request details, amount and the payment screenshot in one message.</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button class="px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold hover:from-violet-600 hover:to-purple-700 transition shadow-lg shadow-violet-500/25">Save Notifications</button>
+            </div>
+            @if(session('saved_section') === 'notifications' && session('success'))
+                <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 px-4 py-3 text-sm">{{ session('success') }}</div>
+            @endif
+        </form>
+    </div>
+
 </div>
 @endsection

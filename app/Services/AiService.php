@@ -88,6 +88,8 @@ class AiService
                             'lead_score' => $conversation->lead_score,
                             'sentiment' => 1,
                         ]);
+                        // Notify the configured number (with screenshot) in a single message
+                        $this->notifyPaymentVerified($kapso, $contact, $conversation, $message, $payment, $verification);
                         if ($simulate) {
                             Message::create([
                                 'conversation_id' => $conversation->id,
@@ -546,6 +548,82 @@ class AiService
         }
 
         return $accounts;
+    }
+
+    /**
+     * Send a WhatsApp notification (with the payment screenshot) to the configured
+     * notify number when a payment is verified.
+     */
+    protected function notifyPaymentVerified(KapsoService $kapso, Contact $contact, Conversation $conversation, Message $message, array $payment, array $verification): void
+    {
+        $notifyNumber = trim((string) $this->setting('ai_notify_number', ''));
+        if ($notifyNumber === '') {
+            return;
+        }
+
+        $service = $this->deriveServiceForNotification($conversation);
+        $requestDetails = $this->deriveRequestDetails($conversation);
+
+        $caption = "🔔 Payment Verified\n\n"
+            ."👤 Client: ".($contact->phone ?? 'n/a')."\n"
+            ."🛠 Service: ".$service."\n"
+            ."📋 Request: ".$requestDetails."\n"
+            ."💰 Amount: ".($payment['currency'] ?? 'PKR')." ".($payment['amount'] ?? 'n/a')."\n"
+            ."🧾 Txn: ".(! empty($payment['transaction_id']) ? $payment['transaction_id'] : 'n/a')."\n"
+            ."✅ To: ".($payment['recipient_number'] ?? '')." (".($payment['recipient_name'] ?? '').")";
+
+        try {
+            if (! empty($message->media_url)) {
+                $kapso->send($notifyNumber, 'image', ['image' => ['link' => $message->media_url, 'caption' => $caption]]);
+            } else {
+                $kapso->sendMessage($notifyNumber, $caption);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Payment notification failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    protected function deriveServiceForNotification(Conversation $conversation): string
+    {
+        $tags = (array) ($conversation->ai_tags ?? []);
+        $generic = ['interested', 'pricing', 'hot_lead', 'support', 'greeting', 'complaint', 'payment', 'verified', 'handoff', 'new', 'qualified', 'negotiating', 'won', 'lost', 'payment_issue'];
+        foreach ($tags as $t) {
+            $t = (string) $t;
+            if ($t !== '' && ! in_array(strtolower($t), $generic, true)) {
+                return $t;
+            }
+        }
+        $lastOut = $conversation->messages->where('direction', 'outbound')->last();
+        if ($lastOut && $lastOut->body) {
+            foreach (explode("\n", (string) $lastOut->body) as $line) {
+                $line = trim($line, " \t-•👉");
+                if ($line !== '' && strlen($line) < 60) {
+                    return $line;
+                }
+            }
+        }
+
+        return 'your selected service';
+    }
+
+    protected function deriveRequestDetails(Conversation $conversation): string
+    {
+        $inbounds = $conversation->messages
+            ->where('direction', 'inbound')
+            ->pluck('body')
+            ->filter()
+            ->reject(fn ($b) => str_contains((string) $b, 'Payment screenshot'))
+            ->values();
+        $last = $inbounds->slice(-2)->implode(' | ');
+        $last = trim(preg_replace('/\s+/', ' ', $last));
+        if ($last === '') {
+            return 'n/a';
+        }
+        if (strlen($last) > 200) {
+            $last = substr($last, 0, 200).'...';
+        }
+
+        return $last;
     }
 
     protected function verifyPayment(array $payment, array $kbDetails = [], array $expectedAmounts = []): array

@@ -43,6 +43,15 @@ class SettingController extends Controller
             }
         }
 
+        if ($section === 'notifications' || $section === 'all') {
+            $data = $request->validate([
+                'ai_notify_number' => 'nullable|string|max:20',
+            ]);
+            foreach ($data as $key => $value) {
+                Setting::updateOrCreate(['key' => $key], ['value' => $value]);
+            }
+        }
+
         if ($section === 'followup' || $section === 'all') {
             $data = $request->validate([
                 'ai_followup_enabled' => 'nullable|in:0,1',
