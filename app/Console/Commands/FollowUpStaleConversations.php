@@ -104,6 +104,7 @@ class FollowUpStaleConversations extends Command
             ]);
 
             $conv->followed_up_at = now();
+            $conv->update(['last_message_at' => now()]);
             $conv->save();
             $sent++;
         }
