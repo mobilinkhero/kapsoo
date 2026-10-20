@@ -89,7 +89,9 @@ class FollowUpStaleConversations extends Command
             // Derive the quoted price (if any) so we can state the discount in PKR
             $priceNum = 0;
             try {
-                $allOut = $conv->messages->where('direction', 'outbound')->pluck('body')->implode("\n");
+                $allOut = $conv->messages->where('direction', 'outbound')
+                    ->reject(fn ($m) => str_contains(strtolower((string) $m->body), 'discount') || str_contains(strtolower((string) $m->body), 'special offer'))
+                    ->pluck('body')->implode("\n");
                 if (preg_match_all('/([\d][\d,]{2,9})\s*(?:pkr|rs\.?|rupees)/i', $allOut, $m)) {
                     $amounts = array_map(fn ($v) => (float) str_replace(',', '', $v), $m[1]);
                     sort($amounts);
@@ -111,7 +113,7 @@ class FollowUpStaleConversations extends Command
                 .'The customer was interested in a service but went silent. Message must: '
                 .'(1) greet by name, '
                 .'(2) ask if they still need that service, '
-                .'(3) mention the discounted price using this EXACT phrase: "Discounted price: '.$finalPrice.' PKR" (was '.$priceNum.' PKR). Do NOT mention any percentage. Do NOT rephrase. '
+                .'(3) mention the discounted price. Use this EXACT phrase and nothing else for the price: "Discounted price: '.$finalPrice.' PKR". Do NOT mention any percentage. Do NOT say "10%". Do NOT rephrase. '
                 .'(4) end with a short question inviting them to reply. '
                 .'Keep it under 3 lines. No urgency hype. No long paragraphs. No service lists. No extra fluff. '
                 .'Respond with ONLY the message text, no JSON, no markdown.';
