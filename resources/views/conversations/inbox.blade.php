@@ -46,6 +46,16 @@
     .wai-time.unread { color: #25d366; font-weight: 600; }
     .wai-preview { font-size: 11px; color: #667781; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0; }
     .wai-badge { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #25d366; color: #fff; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .wai-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+    .wai-tag { font-size: 9px; font-weight: 600; padding: 1.5px 6px; border-radius: 999px; background: #eef1f3; color: #54656f; white-space: nowrap; }
+    .wai-tag.needshuman { background: #fde8e8; color: #c0392b; }
+    .wai-tag.paid { background: #e7fce3; color: #1f7a45; }
+    .wai-tag.aioff { background: #e9edef; color: #667781; }
+    .wai-tag.stage-new { background: #e0f2fe; color: #0369a1; }
+    .wai-tag.stage-qualified { background: #ede9fe; color: #6d28d9; }
+    .wai-tag.stage-negotiating { background: #fef3c7; color: #b45309; }
+    .wai-tag.stage-won { background: #d1fae5; color: #047857; }
+    .wai-tag.stage-lost { background: #f3f4f6; color: #6b7280; }
     .wai-empty-list { padding: 20px 16px; text-align: center; color: #667781; font-size: 12px; line-height: 1.5; }
 
     /* ---------------- Right: conversation ---------------- */
@@ -196,10 +206,12 @@
             </div>
         </div>
 
-        <div class="wai-filters">
-            <button type="button" class="wai-pill on">All</button>
-            <button type="button" class="wai-pill">Unread</button>
-            <button type="button" class="wai-pill">Groups</button>
+        <div class="wai-filters" id="waiFilters">
+            <button type="button" class="wai-pill on" data-filter="all">All</button>
+            <button type="button" class="wai-pill" data-filter="unread">Unread</button>
+            <button type="button" class="wai-pill" data-filter="handoff">Need reply</button>
+            <button type="button" class="wai-pill" data-filter="paid">Paid</button>
+            <button type="button" class="wai-pill" data-filter="aioff">AI off</button>
         </div>
 
         <div class="wai-chatlist" id="waiChatList">
@@ -207,10 +219,25 @@
                 @php
                     $contactName = $conv->contact->name ?? $conv->contact->phone;
                     $preview = $conv->latestMessage->body ?? 'No messages yet';
+                    $aiTags = collect($conv->ai_tags ?? [])->map(fn ($t) => strtolower(trim((string) $t)))->unique()->values();
+                    $reason = strtolower((string) ($conv->handoff_reason ?? ''));
+                    $isPaid = $aiTags->contains(fn ($t) => str_contains($t, 'verified')) || str_contains($reason, 'verified');
+                    $isPayment = $isPaid || $aiTags->contains(fn ($t) => str_contains($t, 'payment'));
+                    $humanTakeover = (bool) $conv->ai_handoff;
+                    $needsHuman = $humanTakeover && ! $isPaid;
+                    $aiOff = ($conv->ai_mode ?? 'auto') === 'off';
+                    $stage = strtolower((string) ($conv->lead_stage ?? ''));
+                    $stageLabels = ['new' => 'New lead', 'qualified' => 'Qualified', 'negotiating' => 'Negotiating', 'won' => 'Won', 'lost' => 'Lost'];
+                    $extraTags = $aiTags->reject(fn ($t) => str_contains($t, 'payment') || str_contains($t, 'verified') || str_contains($t, 'handoff'))->take(2);
                 @endphp
                 <a href="{{ route('conversations.index', ['c' => $conv->id]) }}"
                    class="wai-item {{ $selected && $selected->id === $conv->id ? 'is-active' : '' }}"
-                   data-id="{{ $conv->id }}" data-search="{{ strtolower($contactName . ' ' . $conv->contact->phone . ' ' . $preview) }}">
+                   data-id="{{ $conv->id }}"
+                   data-unread="{{ $conv->unread_count > 0 ? 1 : 0 }}"
+                   data-handoff="{{ $humanTakeover ? 1 : 0 }}"
+                   data-paid="{{ $isPaid ? 1 : 0 }}"
+                   data-aioff="{{ $aiOff ? 1 : 0 }}"
+                   data-search="{{ strtolower($contactName . ' ' . $conv->contact->phone . ' ' . $preview . ' ' . $aiTags->implode(' ')) }}">
                     <div class="wai-avatar">{{ strtoupper(substr($contactName, 0, 1)) }}</div>
                     <div class="wai-item-main">
                         <div class="wai-item-row">
@@ -218,11 +245,34 @@
                             <span class="wai-time {{ $conv->unread_count > 0 ? 'unread' : '' }}">{{ $conv->last_message_at?->format('H:i') }}</span>
                         </div>
                         <div class="wai-item-row">
-                            <span class="wai-preview">{{ $preview }}</span>
+                            <span class="wai-preview">{{ \Illuminate\Support\Str::limit($preview, 34) }}</span>
                             @if($conv->unread_count > 0)
                                 <span class="wai-badge">{{ $conv->unread_count }}</span>
                             @endif
                         </div>
+                        @if($isPayment || $humanTakeover || $aiOff || isset($stageLabels[$stage]) || $extraTags->isNotEmpty())
+                            <div class="wai-tags">
+                                @if($isPaid)
+                                    <span class="wai-tag paid">✅ Paid</span>
+                                @elseif($isPayment)
+                                    <span class="wai-tag stage-negotiating">🕒 Payment</span>
+                                @endif
+                                @if($needsHuman)
+                                    <span class="wai-tag needshuman">👤 Needs human reply</span>
+                                @elseif($humanTakeover && $isPaid)
+                                    <span class="wai-tag aioff">👤 Human takeover</span>
+                                @endif
+                                @if($aiOff && ! $humanTakeover)
+                                    <span class="wai-tag aioff">AI off</span>
+                                @endif
+                                @if(isset($stageLabels[$stage]))
+                                    <span class="wai-tag stage-{{ $stage }}">{{ $stageLabels[$stage] }}</span>
+                                @endif
+                                @foreach($extraTags as $t)
+                                    <span class="wai-tag">{{ $t }}</span>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
                 </a>
             @empty
@@ -471,17 +521,37 @@
         });
     }
 
-    // Search filter
-    const search = document.getElementById('waiSearch');
-    if (search && list) {
-        search.addEventListener('input', () => {
-            const q = search.value.trim().toLowerCase();
-            list.querySelectorAll('.wai-item').forEach(item => {
-                const hay = item.getAttribute('data-search') || '';
-                item.style.display = (!q || hay.includes(q)) ? '' : 'none';
-            });
+    // Filters + search
+    const filtersBar = document.getElementById('waiFilters');
+    let activeFilter = 'all';
+
+    function applyFilters() {
+        if (!list) return;
+        const q = (document.getElementById('waiSearch')?.value || '').trim().toLowerCase();
+        list.querySelectorAll('.wai-item').forEach(item => {
+            let show = true;
+            if (activeFilter === 'unread') show = item.getAttribute('data-unread') === '1';
+            else if (activeFilter === 'handoff') show = item.getAttribute('data-handoff') === '1';
+            else if (activeFilter === 'paid') show = item.getAttribute('data-paid') === '1';
+            else if (activeFilter === 'aioff') show = item.getAttribute('data-aioff') === '1';
+            if (show && q) show = (item.getAttribute('data-search') || '').includes(q);
+            item.style.display = show ? '' : 'none';
         });
     }
+
+    if (filtersBar && list) {
+        filtersBar.addEventListener('click', (e) => {
+            const pill = e.target.closest('.wai-pill');
+            if (!pill) return;
+            filtersBar.querySelectorAll('.wai-pill').forEach(p => p.classList.remove('on'));
+            pill.classList.add('on');
+            activeFilter = pill.getAttribute('data-filter') || 'all';
+            applyFilters();
+        });
+    }
+
+    const search = document.getElementById('waiSearch');
+    if (search) search.addEventListener('input', applyFilters);
 
     const back = document.getElementById('waiBack');
     if (back) back.addEventListener('click', () => shell.classList.remove('wai-show-chat'));
