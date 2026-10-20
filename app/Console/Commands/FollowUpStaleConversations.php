@@ -69,6 +69,12 @@ class FollowUpStaleConversations extends Command
                 continue;
             }
 
+            // Re-fetch fresh to avoid acting on stale data from a concurrent run
+            $conv = Conversation::find($conv->id);
+            if (! $conv || $conv->followed_up_at !== null) {
+                continue; // already followed up (possibly by a concurrent run)
+            }
+
             // Build recent conversation transcript for the AI
             $history = $conv->messages()->orderBy('id')->limit(30)->get();
             $transcript = [];
@@ -136,6 +142,11 @@ class FollowUpStaleConversations extends Command
             // Normalize newlines
             $text = preg_replace("/\n{3,}/", "\n\n", $text);
 
+            // Mark as followed up BEFORE sending, so concurrent runs skip this conversation
+            $conv->followed_up_at = now();
+            $conv->update(['last_message_at' => now()]);
+            $conv->save();
+
             $kapso->sendMessage($contact->phone, $text);
 
             Message::create([
@@ -147,9 +158,6 @@ class FollowUpStaleConversations extends Command
                 'sent_at' => now(),
             ]);
 
-            $conv->followed_up_at = now();
-            $conv->update(['last_message_at' => now()]);
-            $conv->save();
             $sent++;
         }
 
