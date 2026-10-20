@@ -161,6 +161,8 @@ class AiService
     protected function analyze(Conversation $conversation, Message $message, ?Contact $contact = null): array
     {
         $systemPrompt = $this->setting('ai_system_prompt', $this->defaultSystemPrompt());
+        // Always enforce WhatsApp-friendly formatting regardless of custom prompt
+        $systemPrompt .= "\n\nFORMATTING RULES (WhatsApp): Write replies in multiple short lines using newlines, not one long paragraph. Keep under ~8 lines. Use emojis sparingly and only where helpful. Ask as few questions as possible. Use clear spacing for details (e.g. payment info on separate lines). Do not repeat info already provided.";
 
         // RAG context
         $ragResult = $this->kb->search($message->body ?? '', 5, ['hyde' => false, 'expand' => false]);
@@ -223,7 +225,7 @@ class AiService
 
         $isFirstMessage = $chatHistory === [];
         $instruction = "Respond ONLY with a valid JSON object (no markdown) with keys:\n"
-            ."- reply: string, the suggested reply to send to the customer (concise, helpful, sales-oriented). Empty string if no reply needed.\n"
+            ."- reply: string, the suggested reply to send to the customer. Format it for WhatsApp: use newlines (\\n) to split into short lines, keep it concise (under ~8 lines), use emojis sparingly and only where helpful, and ask as few questions as possible. Use clear spacing for details like payment info. Empty string if no reply needed.\n"
             ."- tags: array of short intent/sentiment tags (e.g. interested, pricing, complaint, hot_lead, support, greeting).\n"
             ."- confidence: number 0-1 indicating how confident you are in the reply.\n"
             ."- handoff: boolean, true if a human agent should take over.\n"
@@ -251,8 +253,14 @@ class AiService
             $parsed = [];
         }
 
+        $reply = trim((string) ($parsed['reply'] ?? ''));
+        // Normalize: collapse 3+ newlines to 2, trim each line
+        $reply = preg_replace("/\n{3,}/", "\n\n", $reply);
+        $lines = array_map('trim', explode("\n", $reply));
+        $reply = implode("\n", $lines);
+
         return [
-            'reply' => $parsed['reply'] ?? '',
+            'reply' => $reply,
             'tags' => array_values(array_filter((array) ($parsed['tags'] ?? []))),
             'confidence' => isset($parsed['confidence']) ? (float) $parsed['confidence'] : null,
             'sentiment' => isset($parsed['sentiment']) ? (float) $parsed['sentiment'] : null,
@@ -367,6 +375,13 @@ class AiService
             .'Be friendly, concise, and goal-oriented: qualify leads, answer questions, handle objections, and move conversations toward a purchase. '
             .'Use the knowledge base when relevant. If unsure or the customer is upset or asks for a human, set handoff=true. '
             .'Never make up facts not in the knowledge base. '
-            .'Remember the customer across messages: keep track of their name, needs, and prior answers, and do not ask for information already provided.';
+            .'Remember the customer across messages: keep track of their name, needs, and prior answers, and do not ask for information already provided. '
+            .'FORMATTING RULES (WhatsApp): '
+            .'1) Write replies in multiple short lines using newlines (\\n), not one long paragraph. '
+            .'2) Keep messages short (ideally under 6-8 lines). '
+            .'3) Use emojis sparingly and only where they genuinely help (greetings, confirmations, payment). Do not put an emoji in every line. '
+            .'4) Ask as few questions as possible; only ask what is strictly needed to move forward. '
+            .'5) Use clear spacing between sections (e.g. payment details on separate lines). '
+            .'6) Do not repeat information the customer already provided.';
     }
 }
