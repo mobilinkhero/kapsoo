@@ -54,7 +54,6 @@ class FollowUpStaleConversations extends Command
                     ->orWhereColumn('followed_up_at', '<', 'last_inbound_at');
             })
             ->where('ai_mode', '!=', 'off')
-            ->where('ai_handoff', false)
             ->get();
 
         $sent = 0;
