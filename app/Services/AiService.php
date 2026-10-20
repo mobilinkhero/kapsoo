@@ -561,16 +561,57 @@ class AiService
             return;
         }
 
-        $service = $this->deriveServiceForNotification($conversation);
-        $requestDetails = $this->deriveRequestDetails($conversation);
+        // Build a transcript so the AI can extract the real service + request details
+        $history = $conversation->messages()->orderBy('id')->limit(30)->get();
+        $transcript = [];
+        foreach ($history as $m) {
+            if (empty($m->body)) {
+                continue;
+            }
+            $transcript[] = ($m->direction === 'inbound' ? 'Customer' : 'Assistant').': '.$m->body;
+        }
+        $transcriptText = implode("\n", $transcript);
 
-        $caption = "🔔 Payment Verified\n\n"
-            ."👤 Client: ".($contact->phone ?? 'n/a')."\n"
-            ."🛠 Service: ".$service."\n"
-            ."📋 Request: ".$requestDetails."\n"
-            ."💰 Amount: ".($payment['currency'] ?? 'PKR')." ".($payment['amount'] ?? 'n/a')."\n"
-            ."🧾 Txn: ".(! empty($payment['transaction_id']) ? $payment['transaction_id'] : 'n/a')."\n"
-            ."✅ To: ".($payment['recipient_number'] ?? '')." (".($payment['recipient_name'] ?? '').")";
+        $system = 'You write a short WhatsApp notification (5-7 lines) for a business owner when a customer payment is verified. '
+            .'Extract from the conversation: the exact service the customer wanted and the specific details/numbers they provided (e.g. "SIM Owner Details for 03008844321"). '
+            .'Output ONLY the notification text, no JSON, no markdown. Format:\n'
+            ."🔔 Payment Verified\n\n"
+            ."👤 Client: {phone}\n"
+            ."🛠 Service: {service name}\n"
+            ."📋 Request: {what details they want, with any numbers/IDs}\n"
+            ."💰 Amount: {amount} {currency}\n"
+            ."🧾 Txn: {transaction id or n/a}\n"
+            ."✅ To: {recipient number} ({recipient name})\n"
+            .'Keep each value concise. Do not invent facts not in the conversation or payment data.';
+
+        $user = "Client phone: ".($contact->phone ?? 'n/a')."\n"
+            ."Payment data: ".json_encode($payment)."\n\n"
+            ."Conversation transcript:\n".$transcriptText."\n\n"
+            ."Write the notification now.";
+
+        $caption = null;
+        if ($this->openai->isConfigured()) {
+            $res = $this->openai->chat(
+                [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $user]],
+                ['temperature' => 0.2, 'max_tokens' => 200]
+            );
+            if (! empty($res['ok']) && ! empty($res['content'])) {
+                $caption = trim((string) $res['content']);
+            }
+        }
+
+        if (empty($caption)) {
+            // Fallback to the derived version if AI fails
+            $service = $this->deriveServiceForNotification($conversation);
+            $requestDetails = $this->deriveRequestDetails($conversation);
+            $caption = "🔔 Payment Verified\n\n"
+                ."👤 Client: ".($contact->phone ?? 'n/a')."\n"
+                ."🛠 Service: ".$service."\n"
+                ."📋 Request: ".$requestDetails."\n"
+                ."💰 Amount: ".($payment['currency'] ?? 'PKR')." ".($payment['amount'] ?? 'n/a')."\n"
+                ."🧾 Txn: ".(! empty($payment['transaction_id']) ? $payment['transaction_id'] : 'n/a')."\n"
+                ."✅ To: ".($payment['recipient_number'] ?? '')." (".($payment['recipient_name'] ?? '').")";
+        }
 
         try {
             if (! empty($message->media_url)) {
