@@ -107,20 +107,13 @@ class FollowUpStaleConversations extends Command
                 ? "Original price: {$priceNum} PKR. Discount: {$discount}% = {$discountAmount} PKR off. Final price after discount: {$finalPrice} PKR."
                 : "No specific price was quoted; offer a {$discount}% discount.";
 
-            $system = 'You are a friendly WhatsApp sales assistant writing in simple Roman Urdu (Urdu written in English letters), like a real Pakistani salesperson. '
-                .'The customer has been inactive. Write ONE short follow-up message (4-6 lines) that converts them to buy: '
-                .'(1) warm greeting with their name, '
-                .'(2) remind them of exactly what they asked for and that it is ready/pending, '
-                .'(3) create gentle urgency (limited time / slots), '
-                .'(4) offer a discount of '.$discountAmount.' PKR (which is '.$discount.'% off, bringing the price to '.$finalPrice.' PKR) as a real incentive to act now, '
-                .'(5) end with ONE clear call-to-action asking them to reply "YES" or send payment. '
-                .'Use simple everyday Roman Urdu words (e.g. "Assalam o Alaikum", "aap", "kaam", "tayar", "discount", "jaldi"). '
-                .'EXAMPLE (follow this warm, converting style):\n'
-                ."Assalam o Alaikum Ahtisham! 😊\n"
-                ."Aapka SIM Owner Details ka kaam ready hai, bas payment pending hai.\n"
-                ."Aaj ke liye special offer: {$discountAmount} PKR discount (sirf aaj ke liye)!\n"
-                ."Kya aap abhi payment kar dein? Reply 'YES' aur main details bhej deta hoon. 🚀\n"
-                .'Do NOT repeat the full service list. Do NOT make up facts. Do NOT use English paragraphs. '
+            $system = 'You are a WhatsApp sales assistant. Write ONE very short follow-up message (2-3 lines max) in simple Roman Urdu. '
+                .'The customer was interested in a service but went silent. Message must: '
+                .'(1) greet by name, '
+                .'(2) ask if they still need that service, '
+                .'(3) mention the discounted price of '.$finalPrice.' PKR (was '.$priceNum.' PKR, '.$discountAmount.' PKR off) as an incentive, '
+                .'(4) end with a short question inviting them to reply. '
+                .'Keep it under 3-4 lines. No urgency hype. No long paragraphs. No service lists. No extra fluff. '
                 .'Respond with ONLY the message text, no JSON, no markdown.';
             if ($extra !== '') {
                 $system .= ' Additional instruction: '.$extra;
