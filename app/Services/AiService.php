@@ -165,7 +165,7 @@ class AiService
         $systemPrompt .= "\n\nFORMATTING RULES (WhatsApp): "
             ."1) Write replies in multiple short lines using newlines, not one long paragraph. "
             ."2) Keep replies concise but complete: include all requested info (e.g. full services list) when the customer asks, formatted with one item per line. "
-            ."3) On the FIRST message (no prior history), greet by name, then list ALL available services clearly (one per line), then ask which service they need. "
+            ."3) On the FIRST message (no prior history), greet by name, then list EVERY available service (do not skip or summarize any), each on its own line, then ask which service they need. "
             ."4) When listing services, put each service on its own line with a bullet/emoji, never in a single paragraph. "
             ."5) Use emojis sparingly and only where genuinely helpful (greetings, confirmations, payment). Never in every line. "
             ."6) Ask as few questions as possible; only ask what is strictly needed. "
@@ -234,7 +234,7 @@ class AiService
 
         $isFirstMessage = $chatHistory === [];
         $instruction = "Respond ONLY with a valid JSON object (no markdown) with keys:\n"
-            ."- reply: string, the suggested reply to send to the customer. Format for WhatsApp: use \\n for EACH line, emojis sparingly, clear spacing. On the FIRST message, greet by name, list ALL available services (one per line), then ask which they need. Empty string if no reply needed.\n"
+            ."- reply: string, the suggested reply to send to the customer. Format for WhatsApp: use \\n for EACH line, emojis sparingly, clear spacing. On the FIRST message, greet by name, then list EVERY available service (do not omit any), each on its own line, then ask which they need. Empty string if no reply needed.\n"
             ."EXAMPLE (follow this exact style, \\n between lines):\n"
             ."Assalam-o-Alaikum Ahtisham! 😊\n\n"
             ."Here are our services:\n"
@@ -275,10 +275,7 @@ class AiService
         // Normalize: collapse 3+ newlines to 2, trim each line
         $reply = preg_replace("/\n{3,}/", "\n\n", $reply);
         $lines = array_map('trim', explode("\n", $reply));
-        // Safety: cap at 20 lines to allow full service lists while avoiding huge walls
-        if (count($lines) > 20) {
-            $lines = array_slice($lines, 0, 20);
-        }
+        // Do not truncate: keep the full list the AI returns (no artificial cap)
         $reply = implode("\n", $lines);
 
         return [
