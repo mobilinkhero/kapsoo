@@ -46,7 +46,9 @@ class AiService
                 // Payment screenshot verification
                 $payment = $this->openai->extractPaymentDetails($message->media_url);
                 if (is_array($payment) && ! empty($payment['is_payment'])) {
-                    $verification = $this->verifyPayment($payment);
+                    // Pull expected payment details from the knowledge base (flexible, editable)
+                    $kbDetails = $this->getPaymentDetailsFromKb();
+                    $verification = $this->verifyPayment($payment, $kbDetails);
                     $message->update(['body' => '[Payment screenshot: '.json_encode($payment).']']);
                     $message->refresh();
 
@@ -228,7 +230,7 @@ class AiService
             .'8) Use clear spacing for details like payment info (each on its own line). '
             .'9) Do not repeat info already provided. '
             .'10) Prefer concise wording. Never re-send the full service list unless the customer asks for it again. '
-            .'11) PAYMENT: When a payment screenshot is received and verified, the system handles handoff automatically; you do not need to verify. If a payment screenshot is not verified, ask the customer to resend a clear screenshot showing amount, recipient number ('.trim((string) $this->setting('payment_number', '03422339127')).') and name ('.trim((string) $this->setting('payment_name', 'Ameer Usman')).').';
+            .'11) PAYMENT: Payment account details are stored in the knowledge base; use them when sharing payment info. When a payment screenshot is received and verified, the system handles handoff automatically; you do not need to verify. If a payment screenshot is not verified, ask the customer to resend a clear screenshot showing amount, recipient number and name.';
 
         // RAG context
         $ragResult = $this->kb->search($message->body ?? '', 5, ['hyde' => false, 'expand' => false]);
@@ -434,10 +436,37 @@ class AiService
         }
     }
 
-    protected function verifyPayment(array $payment): array
+    protected function getPaymentDetailsFromKb(): array
     {
-        $expectedNumber = trim((string) $this->setting('payment_number', '03422339127'));
-        $expectedName = trim((string) $this->setting('payment_name', 'Ameer Usman'));
+        $result = ['number' => null, 'name' => null];
+        try {
+            $search = $this->kb->search('payment details jazzcash account number name', 4, ['expand' => false, 'hyde' => false]);
+            $chunks = $search['chunks'] ?? [];
+            $text = implode("\n", $chunks);
+            if (preg_match('/(?:number|account|phone)\s*[:\-]?\s*([0-9]{10,13})/i', $text, $m)) {
+                $result['number'] = $m[1];
+            }
+            if (preg_match('/(?:name|account holder|recipient)\s*[:\-]?\s*([A-Za-z ]{3,40})/i', $text, $m)) {
+                $result['name'] = trim($m[1]);
+            }
+        } catch (\Throwable $e) {
+            // fall back to settings
+        }
+
+        if (empty($result['number'])) {
+            $result['number'] = $this->setting('payment_number', '03422339127');
+        }
+        if (empty($result['name'])) {
+            $result['name'] = $this->setting('payment_name', 'Ameer Usman');
+        }
+
+        return $result;
+    }
+
+    protected function verifyPayment(array $payment, array $kbDetails = []): array
+    {
+        $expectedNumber = trim((string) ($kbDetails['number'] ?? $this->setting('payment_number', '03422339127')));
+        $expectedName = trim((string) ($kbDetails['name'] ?? $this->setting('payment_name', 'Ameer Usman')));
 
         $recipientNumber = trim((string) ($payment['recipient_number'] ?? ''));
         $recipientName = trim((string) ($payment['recipient_name'] ?? ''));
