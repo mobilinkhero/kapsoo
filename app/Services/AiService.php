@@ -49,6 +49,23 @@ class AiService
                 if (is_array($payment) && ! empty($payment['is_payment'])) {
                     // Pull expected payment details from the knowledge base (flexible, editable)
                     $kbDetails = $this->getPaymentDetailsFromKb();
+                    // Also accept any account number the AI actually shared with this customer
+                    // (handles the case where KB/account details changed mid-conversation)
+                    $sharedAccounts = $this->getSharedPaymentAccountsFromConversation($conversation);
+                    $merged = $kbDetails['accounts'] ?? [];
+                    $existingNums = array_map(fn ($a) => preg_replace('/\D/', '', (string) ($a['number'] ?? '')), $merged);
+                    foreach ($sharedAccounts as $sa) {
+                        $n = preg_replace('/\D/', '', (string) ($sa['number'] ?? ''));
+                        if ($n !== '' && ! in_array($n, $existingNums, true)) {
+                            $merged[] = $sa;
+                            $existingNums[] = $n;
+                        }
+                    }
+                    if (! empty($merged)) {
+                        $kbDetails['accounts'] = $merged;
+                        $kbDetails['number'] = $merged[0]['number'] ?? $kbDetails['number'];
+                        $kbDetails['name'] = $merged[0]['name'] ?? $kbDetails['name'];
+                    }
                     $expectedAmounts = $this->getQuotedAmountsFromConversation($conversation);
                     $verification = $this->verifyPayment($payment, $kbDetails, $expectedAmounts);
                     $message->update(['body' => '[Payment screenshot: '.json_encode($payment).']']);
@@ -97,8 +114,13 @@ class AiService
                     }
 
                     // Not verified -> keep the AI replying: tell it exactly why the screenshot failed
-                    $paymentNotice = 'A payment screenshot was just received but it FAILED automatic verification: '.$verification['reason'].'. Expected recipient: '.$verification['expected_number'].' ('.$verification['expected_name'].'). '
-                        .'Do NOT set handoff=true and do NOT say the payment is confirmed. Reply by politely telling the customer the payment could not be verified, show the expected details, and ask them to send a clear, GENUINE screenshot from their payment app showing the amount, recipient number and name.';
+                    $accountList = implode('; ', array_map(
+                        fn ($a) => trim(($a['method'] ? $a['method'].' ' : '').($a['name'] ?? '').' '.($a['number'] ?? '')),
+                        $verification['accounts'] ?? []
+                    ));
+                    $paymentNotice = 'A payment screenshot was just received but it FAILED automatic verification: '.$verification['reason'].'. '
+                        .'Accepted payment accounts are: '.$accountList.'. '
+                        .'Do NOT set handoff=true and do NOT say the payment is confirmed. Reply by politely telling the customer the payment could not be verified, list the correct account details above, and ask them to send a clear, GENUINE screenshot from their payment app showing the amount, recipient number and name.';
                     $message->update(['body' => '[Payment screenshot failed verification: '.$verification['reason'].']']);
                     $message->refresh();
                 } else {
@@ -444,74 +466,171 @@ class AiService
 
     protected function getPaymentDetailsFromKb(): array
     {
-        $result = ['number' => null, 'name' => null];
+        $accounts = [];
+        $text = '';
         try {
-            $search = $this->kb->search('payment details jazzcash account number name', 4, ['expand' => false, 'hyde' => false]);
+            $search = $this->kb->search('payment details account number name', 4, ['expand' => false, 'hyde' => false]);
             $chunks = $search['chunks'] ?? [];
             $text = implode("\n", $chunks);
-            if (preg_match('/(?:number|account|phone)\s*[:\-]?\s*([0-9]{10,13})/i', $text, $m)) {
-                $result['number'] = $m[1];
-            }
-            if (preg_match('/(?:name|account holder|recipient)\s*[:\-]?\s*([A-Za-z ]{3,40})/i', $text, $m)) {
-                $result['name'] = trim($m[1]);
-            }
         } catch (\Throwable $e) {
             // fall back to settings
         }
 
-        if (empty($result['number'])) {
-            $result['number'] = $this->setting('payment_number', '03422339127');
-        }
-        if (empty($result['name'])) {
-            $result['name'] = $this->setting('payment_name', 'Ameer Usman');
+        $lines = preg_split('/\r?\n/', $text);
+        $currentMethod = null;
+        $currentName = null;
+        foreach ($lines as $line) {
+            if (preg_match('/\*\*\s*\d+\.\s*([A-Za-z]+)/', $line, $m)) {
+                $currentMethod = trim($m[1]);
+                $currentName = null;
+
+                continue;
+            }
+            if (preg_match('/Account Name\s*[:\-]?\s*(.+)/i', $line, $m)) {
+                $currentName = trim($m[1], ' *');
+
+                continue;
+            }
+            if (preg_match('/Mobile Number\s*[:\-]?\s*([0-9]{10,13})/i', $line, $m)) {
+                $accounts[] = [
+                    'method' => $currentMethod,
+                    'name' => $currentName,
+                    'number' => trim($m[1]),
+                ];
+                $currentName = null;
+
+                continue;
+            }
         }
 
-        return $result;
+        if (empty($accounts) && preg_match_all('/\b(03[0-9]{9})\b/', $text, $m)) {
+            foreach ($m[1] as $num) {
+                $accounts[] = ['method' => null, 'name' => null, 'number' => $num];
+            }
+        }
+        if (empty($accounts) && preg_match_all('/(?:number|account|phone)\s*[:\-]?\s*([0-9]{10,13})/i', $text, $m)) {
+            foreach ($m[1] as $num) {
+                $accounts[] = ['method' => null, 'name' => null, 'number' => $num];
+            }
+        }
+
+        if (preg_match_all('/Account Name\s*[:\-]?\s*(.+)/i', $text, $mn)) {
+            $names = array_map(fn ($n) => trim($n, ' *'), $mn[1]);
+            foreach ($accounts as $i => $a) {
+                if (empty($a['name']) && isset($names[$i])) {
+                    $accounts[$i]['name'] = $names[$i];
+                }
+            }
+        }
+
+        if (empty($accounts)) {
+            $accounts[] = [
+                'method' => null,
+                'name' => $this->setting('payment_name', 'Ameer Usman'),
+                'number' => $this->setting('payment_number', '03422339127'),
+            ];
+        }
+
+        $first = $accounts[0];
+
+        return [
+            'accounts' => $accounts,
+            'number' => $first['number'],
+            'name' => $first['name'] ?? '',
+        ];
+    }
+
+    /** Account numbers the AI actually shared with this customer in the conversation. */
+    protected function getSharedPaymentAccountsFromConversation(Conversation $conversation): array
+    {
+        $accounts = [];
+        try {
+            $text = $conversation->messages()
+                ->where('direction', 'outbound')
+                ->where('type', 'text')
+                ->orderByDesc('id')
+                ->limit(40)
+                ->pluck('body')
+                ->implode("\n");
+            if (preg_match_all('/\b(03[0-9]{9})\b/', $text, $m)) {
+                foreach (array_unique($m[1]) as $num) {
+                    $accounts[] = ['method' => null, 'name' => null, 'number' => $num];
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        return $accounts;
     }
 
     protected function verifyPayment(array $payment, array $kbDetails = [], array $expectedAmounts = []): array
     {
-        $expectedNumber = trim((string) ($kbDetails['number'] ?? $this->setting('payment_number', '03422339127')));
-        $expectedName = trim((string) ($kbDetails['name'] ?? $this->setting('payment_name', 'Ameer Usman')));
-        $expectedNumber = preg_replace('/\s|-/', '', $expectedNumber);
+        $accounts = $kbDetails['accounts'] ?? [];
+        if (empty($accounts)) {
+            $accounts = [[
+                'method' => null,
+                'name' => $kbDetails['name'] ?? $this->setting('payment_name', 'Ameer Usman'),
+                'number' => $kbDetails['number'] ?? $this->setting('payment_number', '03422339127'),
+            ]];
+        }
 
         $recipientNumber = trim((string) ($payment['recipient_number'] ?? ''));
         $recipientName = trim((string) ($payment['recipient_name'] ?? ''));
         $amount = $payment['amount'] ?? null;
         $currency = trim((string) ($payment['currency'] ?? ''));
 
+        $norm = fn ($v) => preg_replace('/\D/', '', (string) $v);
+        $recNum = $norm($recipientNumber);
+        // Match against any configured account
+        $matchedAccount = null;
+        foreach ($accounts as $acc) {
+            $expNum = $norm($acc['number'] ?? '');
+            if ($expNum !== '' && $recNum !== '' && $expNum === $recNum) {
+                $matchedAccount = $acc;
+                break;
+            }
+        }
+        // If recipient number missing/unclear, try name-only match
+        if (! $matchedAccount && $recipientName !== '') {
+            foreach ($accounts as $acc) {
+                $expName = trim((string) ($acc['name'] ?? ''));
+                if ($expName !== '' && (stripos($recipientName, $expName) !== false || stripos($expName, $recipientName) !== false)) {
+                    $matchedAccount = $acc;
+                    break;
+                }
+            }
+        }
+
+        $expectedNumbers = implode(', ', array_map(fn ($a) => $a['number'], $accounts));
+        $expectedNames = implode(', ', array_filter(array_map(fn ($a) => $a['name'], $accounts)));
+
         // Fake / edited screenshot markers from Vision
         if (! empty($payment['looks_forged'])) {
-            return ['ok' => false, 'reason' => 'Screenshot looks edited, fake or not a genuine app capture', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+            return ['ok' => false, 'reason' => 'Screenshot looks edited, fake or not a genuine app capture', 'expected_number' => $expectedNumbers, 'expected_name' => $expectedNames, 'quoted_amounts' => $expectedAmounts, 'accounts' => $accounts];
         }
-
-        // Normalize numbers: strip spaces/dashes
-        $norm = fn ($v) => preg_replace('/\D/', '', (string) $v);
-        $expNum = $norm($expectedNumber);
-        $recNum = $norm($recipientNumber);
 
         if (empty($recipientNumber) && empty($recipientName)) {
-            return ['ok' => false, 'reason' => 'No recipient details found in screenshot', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+            return ['ok' => false, 'reason' => 'No recipient details found in screenshot', 'expected_number' => $expectedNumbers, 'expected_name' => $expectedNames, 'quoted_amounts' => $expectedAmounts, 'accounts' => $accounts];
         }
-        if ($expNum !== '' && $recNum !== '' && $expNum !== $recNum) {
-            return ['ok' => false, 'reason' => 'Recipient number mismatch (expected '.$expectedNumber.', got '.$recipientNumber.')', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+        if (! $matchedAccount) {
+            return ['ok' => false, 'reason' => 'Recipient does not match any configured account (expected one of: '.$expectedNumbers.')', 'expected_number' => $expectedNumbers, 'expected_name' => $expectedNames, 'quoted_amounts' => $expectedAmounts, 'accounts' => $accounts];
         }
-        if ($expectedName !== '' && $recipientName !== '' && stripos($recipientName, $expectedName) === false && stripos($expectedName, $recipientName) === false) {
-            return ['ok' => false, 'reason' => 'Recipient name mismatch (expected '.$expectedName.', got '.$recipientName.')', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+        // Name check against the matched account
+        $matchedName = trim((string) ($matchedAccount['name'] ?? ''));
+        if ($matchedName !== '' && $recipientName !== '' && stripos($recipientName, $matchedName) === false && stripos($matchedName, $recipientName) === false) {
+            return ['ok' => false, 'reason' => 'Recipient name mismatch (expected '.$matchedName.', got '.$recipientName.')', 'expected_number' => $matchedAccount['number'], 'expected_name' => $matchedName, 'quoted_amounts' => $expectedAmounts, 'accounts' => $accounts];
         }
         if (empty($amount) || (float) $amount <= 0) {
-            return ['ok' => false, 'reason' => 'Payment amount not detected', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+            return ['ok' => false, 'reason' => 'Payment amount not detected', 'expected_number' => $matchedAccount['number'], 'expected_name' => $matchedName, 'quoted_amounts' => $expectedAmounts, 'accounts' => $accounts];
         }
-        // We only deal in PKR; a foreign currency means fake or wrong account
         if ($currency !== '' && ! preg_match('/pkr|rs|rupee|pakistan|₨/i', $currency)) {
-            return ['ok' => false, 'reason' => 'Currency looks wrong ('.$currency.'), only PKR is accepted', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+            return ['ok' => false, 'reason' => 'Currency looks wrong ('.$currency.'), only PKR is accepted', 'expected_number' => $matchedAccount['number'], 'expected_name' => $matchedName, 'quoted_amounts' => $expectedAmounts, 'accounts' => $accounts];
         }
         $paidAmount = (float) str_replace(',', '', (string) $amount);
-        // Their services start at 1200 PKR, tiny values are classic fake receipts
         if ($paidAmount > 0 && $paidAmount < 100) {
-            return ['ok' => false, 'reason' => 'Amount looks invalid ('.$amount.')', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+            return ['ok' => false, 'reason' => 'Amount looks invalid ('.$amount.')', 'expected_number' => $matchedAccount['number'], 'expected_name' => $matchedName, 'quoted_amounts' => $expectedAmounts, 'accounts' => $accounts];
         }
-        // Cross-check the paid amount against prices quoted in this conversation
         if (! empty($expectedAmounts)) {
             $match = false;
             foreach ($expectedAmounts as $exp) {
@@ -522,11 +641,11 @@ class AiService
                 }
             }
             if (! $match) {
-                return ['ok' => false, 'reason' => 'Amount '.$amount.' does not match the quoted service price ('.implode(', ', array_map(fn ($e) => (string) $e, $expectedAmounts)).')', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+                return ['ok' => false, 'reason' => 'Amount '.$amount.' does not match the quoted service price ('.implode(', ', array_map(fn ($e) => (string) $e, $expectedAmounts)).')', 'expected_number' => $matchedAccount['number'], 'expected_name' => $matchedName, 'quoted_amounts' => $expectedAmounts, 'accounts' => $accounts];
             }
         }
 
-        return ['ok' => true, 'reason' => 'amount '.($currency ?: 'PKR').' '.$amount.' to '.$recipientNumber.' ('.$recipientName.')', 'expected_number' => $expectedNumber, 'expected_name' => $expectedName, 'quoted_amounts' => $expectedAmounts];
+        return ['ok' => true, 'reason' => 'amount '.($currency ?: 'PKR').' '.$amount.' to '.$matchedAccount['number'].' ('.$matchedAccount['name'].')', 'expected_number' => $matchedAccount['number'], 'expected_name' => $matchedAccount['name'], 'quoted_amounts' => $expectedAmounts, 'accounts' => $accounts];
     }
 
     /** Prices (numbers) the AI quoted in this conversation, used to cross-check payment amounts. */
