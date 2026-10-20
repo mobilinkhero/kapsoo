@@ -132,8 +132,9 @@
             </label>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Hours of inactivity before follow-up</label>
-                    <input name="ai_followup_hours" type="number" min="1" max="720" value="{{ old('ai_followup_hours', $settings['ai_followup_hours'] ?? '24') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition">
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Minutes of inactivity before follow-up</label>
+                    <input name="ai_followup_minutes" type="number" min="1" max="1440" value="{{ old('ai_followup_minutes', $settings['ai_followup_minutes'] ?? ($settings['ai_followup_hours'] ?? 24) * 60) }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition">
+                    <p class="text-xs text-slate-500 mt-1">10 = 10 minutes, 60 = 1 hour, 1440 = 24 hours.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1.5">Discount offered (%)</label>

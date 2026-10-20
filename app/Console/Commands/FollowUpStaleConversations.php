@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 
 class FollowUpStaleConversations extends Command
 {
-    protected $signature = 'ai:follow-up {--hours= : Hours of inactivity before following up}';
+    protected $signature = 'ai:follow-up {--minutes= : Minutes of inactivity before following up} {--hours= : Hours (legacy, converted to minutes)}';
 
     protected $description = 'Send an AI-generated follow-up nudge to stale conversations';
 
@@ -25,9 +25,22 @@ class FollowUpStaleConversations extends Command
             return self::SUCCESS;
         }
 
-        $hours = (int) ($this->option('hours') ?: $setting('ai_followup_hours', '24'));
-        $hours = max(1, $hours);
-        $cutoff = now()->subHours($hours);
+        $minutesOption = $this->option('minutes');
+        $hoursOption = $this->option('hours');
+        if ($minutesOption !== null && $minutesOption !== '') {
+            $minutes = (int) $minutesOption;
+        } elseif ($hoursOption !== null && $hoursOption !== '') {
+            $minutes = (int) $hoursOption * 60;
+        } else {
+            $minutesSetting = $setting('ai_followup_minutes', null);
+            if ($minutesSetting !== null && $minutesSetting !== '') {
+                $minutes = (int) $minutesSetting;
+            } else {
+                $minutes = (int) $setting('ai_followup_hours', '24') * 60;
+            }
+        }
+        $minutes = max(1, min(1440, $minutes));
+        $cutoff = now()->subMinutes($minutes);
         $discount = (int) $setting('ai_followup_discount', '10');
         $extra = trim((string) $setting('ai_followup_extra', ''));
 

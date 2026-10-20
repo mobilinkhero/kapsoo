@@ -46,7 +46,7 @@ class SettingController extends Controller
         if ($section === 'followup' || $section === 'all') {
             $data = $request->validate([
                 'ai_followup_enabled' => 'nullable|in:0,1',
-                'ai_followup_hours' => 'nullable|integer|min:1|max:720',
+                'ai_followup_minutes' => 'nullable|integer|min:1|max:1440',
                 'ai_followup_discount' => 'nullable|integer|min:0|max:90',
                 'ai_followup_extra' => 'nullable|string|max:500',
             ]);
