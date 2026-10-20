@@ -223,6 +223,16 @@ class KapsoWebhookController extends Controller
         $conversation->last_inbound_at = now();
         $conversation->save();
 
+        // Show a typing indicator while the AI generates its reply (2-5s)
+        if ($saved && ! empty($saved->kapso_message_id)) {
+            try {
+                $kapso = app(KapsoService::class);
+                $kapso->sendTypingIndicator($saved->kapso_message_id);
+            } catch (\Throwable $e) {
+                Log::warning('Typing indicator failed', ['error' => $e->getMessage()]);
+            }
+        }
+
         // Trigger AI processing for inbound messages (synchronously, no queue worker needed)
         if ($saved) {
             try {

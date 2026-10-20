@@ -173,4 +173,23 @@ class KapsoService
 
         return $response->json() ?? [];
     }
+
+    public function sendTypingIndicator(string $messageId): array
+    {
+        $response = $this->client()->post("/{$this->phoneNumberId}/messages", [
+            'messaging_product' => 'whatsapp',
+            'status' => 'read',
+            'message_id' => $messageId,
+            'typing_indicator' => ['type' => 'text'],
+        ]);
+
+        if ($response->failed()) {
+            Log::warning('Kapso typing indicator failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        }
+
+        return $response->json() ?? [];
+    }
 }
