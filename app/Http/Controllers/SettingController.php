@@ -48,8 +48,7 @@ class SettingController extends Controller
                 'ai_followup_enabled' => 'nullable|in:0,1',
                 'ai_followup_hours' => 'nullable|integer|min:1|max:720',
                 'ai_followup_discount' => 'nullable|integer|min:0|max:90',
-                'ai_followup_template' => 'nullable|string|max:100',
-                'ai_followup_message' => 'nullable|string|max:2000',
+                'ai_followup_extra' => 'nullable|string|max:500',
             ]);
             // checkbox handling
             if (! $request->has('ai_followup_enabled')) {

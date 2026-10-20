@@ -3,17 +3,19 @@
 namespace App\Console\Commands;
 
 use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\Setting;
 use App\Services\KapsoService;
+use App\Services\OpenAIService;
 use Illuminate\Console\Command;
 
 class FollowUpStaleConversations extends Command
 {
     protected $signature = 'ai:follow-up {--hours= : Hours of inactivity before following up}';
 
-    protected $description = 'Send a follow-up nudge to conversations with no reply in N hours';
+    protected $description = 'Send an AI-generated follow-up nudge to stale conversations';
 
-    public function handle(KapsoService $kapso): int
+    public function handle(KapsoService $kapso, OpenAIService $openai): int
     {
         $setting = fn ($key, $default = null) => Setting::where('key', $key)->value('value') ?? $default;
 
@@ -26,9 +28,8 @@ class FollowUpStaleConversations extends Command
         $hours = (int) ($this->option('hours') ?: $setting('ai_followup_hours', '24'));
         $hours = max(1, $hours);
         $cutoff = now()->subHours($hours);
-        $template = $setting('ai_followup_template', '') ?: config('services.kapso.followup_template') ?: env('KAPSO_FOLLOWUP_TEMPLATE');
         $discount = (int) $setting('ai_followup_discount', '10');
-        $messageTemplate = (string) $setting('ai_followup_message', "Hi {name}! 😊 Just checking in — you were interested in {service}. We'd love to help you get it done. As a special offer, enjoy {discount}% off your order today! Reply to claim your discount. 🎁");
+        $extra = trim((string) $setting('ai_followup_extra', ''));
 
         $conversations = Conversation::with('contact', 'messages')
             ->whereNotNull('last_inbound_at')
@@ -48,28 +49,52 @@ class FollowUpStaleConversations extends Command
                 continue;
             }
 
-            // Derive the service the customer was interested in
-            $service = $this->deriveService($conv);
-            $price = $this->derivePrice($conv);
+            if (! $openai->isConfigured()) {
+                $this->warn('OpenAI not configured; skipping.');
 
-            $text = strtr($messageTemplate, [
-                '{name}' => $contact->name ?: 'there',
-                '{service}' => $service,
-                '{discount}' => $discount,
-                '{price}' => $price,
-                '{phone}' => $contact->phone,
-            ]);
-            // Clean up empty price placeholder
-            $text = preg_replace('/\s*\{price\}\s*/', $price ? ' '.$price.' ' : ' ', $text);
-
-            if ($template) {
-                $kapso->sendTemplate($contact->phone, $template);
-            } else {
-                $kapso->sendMessage($contact->phone, $text);
+                continue;
             }
 
-            // Record the follow-up as an outbound message for history
-            \App\Models\Message::create([
+            // Build recent conversation transcript for the AI
+            $history = $conv->messages()->orderBy('id')->limit(30)->get();
+            $transcript = [];
+            foreach ($history as $m) {
+                if (empty($m->body)) {
+                    continue;
+                }
+                $transcript[] = ($m->direction === 'inbound' ? 'Customer' : 'Assistant').': '.$m->body;
+            }
+            $transcriptText = implode("\n", $transcript);
+
+            $system = 'You are a friendly WhatsApp sales assistant. The customer has been inactive for a while. '
+                .'Write ONE short follow-up message (3-6 lines, WhatsApp style, emojis sparingly) that: '
+                .'(1) greets the customer by name if known, (2) references what they were interested in based on the conversation, '
+                .'(3) offers a '.$discount.'% discount to encourage them to proceed, (4) asks a single short question inviting them to continue. '
+                .'Do NOT repeat the full service list. Do NOT make up facts. Keep it concise and warm. '
+                .'Respond with ONLY the message text, no JSON, no markdown.';
+            if ($extra !== '') {
+                $system .= ' Additional instruction: '.$extra;
+            }
+
+            $messages = [
+                ['role' => 'system', 'content' => $system],
+                ['role' => 'user', 'content' => "Customer name: ".($contact->name ?: 'unknown')."\n\nConversation so far:\n".$transcriptText."\n\nWrite the follow-up message now."],
+            ];
+
+            $res = $openai->chat($messages, ['temperature' => 0.6, 'max_tokens' => 200]);
+            if (! ($res['ok'] ?? false) || empty($res['content'])) {
+                $this->warn("AI failed for conversation {$conv->id}; skipping.");
+
+                continue;
+            }
+
+            $text = trim((string) $res['content']);
+            // Normalize newlines
+            $text = preg_replace("/\n{3,}/", "\n\n", $text);
+
+            $kapso->sendMessage($contact->phone, $text);
+
+            Message::create([
                 'conversation_id' => $conv->id,
                 'direction' => 'outbound',
                 'type' => 'text',
@@ -86,55 +111,5 @@ class FollowUpStaleConversations extends Command
         $this->info("Followed up {$sent} conversation(s).");
 
         return self::SUCCESS;
-    }
-
-    protected function deriveService(Conversation $conv): string
-    {
-        $tags = (array) ($conv->ai_tags ?? []);
-        $generic = ['interested', 'pricing', 'hot_lead', 'support', 'greeting', 'complaint', 'payment', 'verified', 'handoff'];
-        foreach ($tags as $t) {
-            $t = (string) $t;
-            if ($t !== '' && ! in_array(strtolower($t), $generic, true)) {
-                return $t;
-            }
-        }
-
-        // Fall back to the last inbound message body (truncated)
-        $lastInbound = $conv->messages->where('direction', 'inbound')->last();
-        if ($lastInbound && $lastInbound->body) {
-            $body = trim(preg_replace('/\s+/', ' ', (string) $lastInbound->body));
-            if (strlen($body) > 60) {
-                $body = substr($body, 0, 60).'...';
-            }
-            if ($body !== '') {
-                return $body;
-            }
-        }
-
-        return 'your selected service';
-    }
-
-    protected function derivePrice(Conversation $conv): string
-    {
-        $amounts = [];
-        try {
-            $text = $conv->messages->where('direction', 'outbound')->pluck('body')->implode("\n");
-            if (preg_match_all('/([\d][\d,]{2,9})\s*(?:pkr|rs\.?|rupees)/i', $text, $m)) {
-                foreach ($m[1] as $v) {
-                    $amounts[] = (float) str_replace(',', '', $v);
-                }
-            }
-        } catch (\Throwable $e) {
-            // ignore
-        }
-        $amounts = array_values(array_unique($amounts));
-        if (empty($amounts)) {
-            return '';
-        }
-        // Smallest positive quoted amount is most likely the chosen service price
-        sort($amounts);
-        $price = (int) $amounts[0];
-
-        return $price.' PKR';
     }
 }
