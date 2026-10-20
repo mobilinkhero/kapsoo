@@ -12,6 +12,7 @@ use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\KnowledgeDocumentController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\PipelineController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TemplateController;
 use Illuminate\Support\Facades\Route;
