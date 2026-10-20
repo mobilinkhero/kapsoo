@@ -160,6 +160,36 @@ class OpenAIService
         }
     }
 
+    public function extractPaymentDetails(string $imageUrl): ?array
+    {
+        if (empty($this->apiKey) || empty($imageUrl)) {
+            return null;
+        }
+
+        $prompt = 'Analyze this image. If it is a payment receipt/screenshot (JazzCash, bank transfer, etc.), extract these fields as JSON: '
+            .'{ "is_payment": true/false, "amount": number or null, "currency": string or null, "recipient_number": string or null, '
+            .'"recipient_name": string or null, "transaction_id": string or null, "date": string or null, "notes": string or null }. '
+            .'If it is NOT a payment screenshot, return {"is_payment": false}. Respond ONLY with valid JSON, no markdown.';
+
+        $messages = [[
+            'role' => 'user',
+            'content' => [
+                ['type' => 'text', 'text' => $prompt],
+                ['type' => 'image_url', 'image_url' => ['url' => $imageUrl]],
+            ],
+        ]];
+
+        $res = $this->chat($messages, ['temperature' => 0.1, 'response_format' => ['type' => 'json_object']]);
+
+        if (! $res['ok']) {
+            return null;
+        }
+
+        $parsed = json_decode($res['content'] ?? '{}', true);
+
+        return is_array($parsed) ? $parsed : null;
+    }
+
     public function visionDescribe(string $imageUrl, string $prompt = 'Describe what this image shows in one or two sentences, focusing on any product, issue, or request relevant to customer support.'): ?string
     {
         if (empty($this->apiKey) || empty($imageUrl)) {

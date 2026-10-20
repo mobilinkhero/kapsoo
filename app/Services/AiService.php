@@ -43,10 +43,65 @@ class AiService
                     $message->refresh();
                 }
             } elseif (in_array($message->type, ['image', 'sticker'], true)) {
-                $desc = $this->openai->visionDescribe($message->media_url);
-                if ($desc) {
+                // Payment screenshot verification
+                $payment = $this->openai->extractPaymentDetails($message->media_url);
+                if (is_array($payment) && ! empty($payment['is_payment'])) {
+                    $verification = $this->verifyPayment($payment);
+                    $message->update(['body' => '[Payment screenshot: '.json_encode($payment).']']);
+                    $message->refresh();
+
+                    if ($verification['ok']) {
+                        // Verified genuine -> hand off to human and stop replying
+                        $conversation->update([
+                            'ai_handoff' => true,
+                            'handoff_reason' => 'Payment verified: '.$verification['reason'],
+                            'ai_mode' => 'off',
+                        ]);
+                        $this->updateContactMemory($contact, $conversation, $message, [
+                            'reply' => 'Payment verified and handed to team.',
+                            'tags' => ['payment', 'verified'],
+                            'confidence' => 1,
+                            'handoff' => true,
+                            'handoff_reason' => $verification['reason'],
+                            'lead_stage' => $conversation->lead_stage,
+                            'lead_score' => $conversation->lead_score,
+                            'sentiment' => 1,
+                        ]);
+                        if ($simulate) {
+                            Message::create([
+                                'conversation_id' => $conversation->id,
+                                'direction' => 'outbound',
+                                'type' => 'text',
+                                'body' => '✅ Payment verified! Our team will process your order shortly. Thank you! 😊',
+                                'status' => 'sent (simulated)',
+                                'sent_at' => now(),
+                            ]);
+                        } else {
+                            $kapso->sendMessage($contact->phone, '✅ Payment verified! Our team will process your order shortly. Thank you! 😊');
+                            Message::create([
+                                'conversation_id' => $conversation->id,
+                                'direction' => 'outbound',
+                                'type' => 'text',
+                                'body' => '✅ Payment verified! Our team will process your order shortly. Thank you! 😊',
+                                'status' => 'sent',
+                                'sent_at' => now(),
+                            ]);
+                        }
+                        $conversation->update(['last_message_at' => now()]);
+
+                        return;
+                    }
+
+                    // Not verified -> store description, let AI ask to resend
+                    $desc = 'Payment screenshot received but not verified: '.$verification['reason'].'. Details: '.json_encode($payment);
                     $message->update(['body' => '[Image: '.$desc.']']);
                     $message->refresh();
+                } else {
+                    $desc = $this->openai->visionDescribe($message->media_url);
+                    if ($desc) {
+                        $message->update(['body' => '[Image: '.$desc.']']);
+                        $message->refresh();
+                    }
                 }
             }
         }
@@ -163,16 +218,17 @@ class AiService
         $systemPrompt = $this->setting('ai_system_prompt', $this->defaultSystemPrompt());
         // Always enforce WhatsApp-friendly formatting regardless of custom prompt
         $systemPrompt .= "\n\nFORMATTING RULES (WhatsApp): "
-            ."1) Write replies in multiple short lines using newlines, not one long paragraph. "
-            ."2) Keep replies concise but complete: include all requested info when the customer asks, formatted one item per line. "
-            ."3) ONLY on the very first message (no prior history): greet by name, then list EVERY available service (do not skip/summarize), each on its own line, then ask which service they need. "
-            ."4) If there IS prior conversation history, do NOT repeat the greeting or the full service list. Answer the latest message directly and concisely, continuing the conversation. "
-            ."5) When listing services, put each service on its own line with a bullet/emoji, never in a single paragraph. "
-            ."6) Use emojis sparingly and only where genuinely helpful. Never in every line. "
-            ."7) Ask as few questions as possible; only ask what is strictly needed. "
-            ."8) Use clear spacing for details like payment info (each on its own line). "
-            ."9) Do not repeat info already provided. "
-            ."10) Prefer concise wording. Never re-send the full service list unless the customer asks for it again.";
+            .'1) Write replies in multiple short lines using newlines, not one long paragraph. '
+            .'2) Keep replies concise but complete: include all requested info when the customer asks, formatted one item per line. '
+            .'3) ONLY on the very first message (no prior history): greet by name, then list EVERY available service (do not skip/summarize), each on its own line, then ask which service they need. '
+            .'4) If there IS prior conversation history, do NOT repeat the greeting or the full service list. Answer the latest message directly and concisely, continuing the conversation. '
+            .'5) When listing services, put each service on its own line with a bullet/emoji, never in a single paragraph. '
+            .'6) Use emojis sparingly and only where genuinely helpful. Never in every line. '
+            .'7) Ask as few questions as possible; only ask what is strictly needed. '
+            .'8) Use clear spacing for details like payment info (each on its own line). '
+            .'9) Do not repeat info already provided. '
+            .'10) Prefer concise wording. Never re-send the full service list unless the customer asks for it again. '
+            .'11) PAYMENT: When a payment screenshot is received and verified, the system handles handoff automatically; you do not need to verify. If a payment screenshot is not verified, ask the customer to resend a clear screenshot showing amount, recipient number ('.trim((string) $this->setting('payment_number', '03422339127')).') and name ('.trim((string) $this->setting('payment_name', 'Ameer Usman')).').';
 
         // RAG context
         $ragResult = $this->kb->search($message->body ?? '', 5, ['hyde' => false, 'expand' => false]);
@@ -376,6 +432,36 @@ class AiService
         } catch (\Throwable $e) {
             Log::warning('Failed to update contact memory', ['error' => $e->getMessage()]);
         }
+    }
+
+    protected function verifyPayment(array $payment): array
+    {
+        $expectedNumber = trim((string) $this->setting('payment_number', '03422339127'));
+        $expectedName = trim((string) $this->setting('payment_name', 'Ameer Usman'));
+
+        $recipientNumber = trim((string) ($payment['recipient_number'] ?? ''));
+        $recipientName = trim((string) ($payment['recipient_name'] ?? ''));
+        $amount = $payment['amount'] ?? null;
+
+        // Normalize numbers: strip spaces/dashes
+        $norm = fn ($v) => preg_replace('/\D/', '', (string) $v);
+        $expNum = $norm($expectedNumber);
+        $recNum = $norm($recipientNumber);
+
+        if (empty($recipientNumber) && empty($recipientName)) {
+            return ['ok' => false, 'reason' => 'No recipient details found in screenshot'];
+        }
+        if ($expNum !== '' && $recNum !== '' && $expNum !== $recNum) {
+            return ['ok' => false, 'reason' => 'Recipient number mismatch (expected '.$expectedNumber.', got '.$recipientNumber.')'];
+        }
+        if ($expectedName !== '' && $recipientName !== '' && stripos($recipientName, $expectedName) === false && stripos($expectedName, $recipientName) === false) {
+            return ['ok' => false, 'reason' => 'Recipient name mismatch (expected '.$expectedName.', got '.$recipientName.')'];
+        }
+        if (empty($amount) || (float) $amount <= 0) {
+            return ['ok' => false, 'reason' => 'Payment amount not detected'];
+        }
+
+        return ['ok' => true, 'reason' => 'amount '.($payment['currency'] ?? 'PKR').' '.$amount.' to '.$recipientNumber.' ('.$recipientName.')'];
     }
 
     protected function setting(string $key, $default = null)

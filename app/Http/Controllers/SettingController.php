@@ -43,6 +43,16 @@ class SettingController extends Controller
             }
         }
 
+        if ($section === 'payment' || $section === 'all') {
+            $data = $request->validate([
+                'payment_number' => 'nullable|string|max:50',
+                'payment_name' => 'nullable|string|max:100',
+            ]);
+            foreach ($data as $key => $value) {
+                Setting::updateOrCreate(['key' => $key], ['value' => $value]);
+            }
+        }
+
         if ($section === 'ai' || $section === 'all') {
             $data = $request->validate([
                 'openai_api_key' => 'nullable|string',
